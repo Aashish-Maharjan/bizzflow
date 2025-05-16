@@ -1,13 +1,13 @@
 import Layout from './components/layout/Layout';
-import { Sidebar } from './components/layout/Sidebar';
-import { Topbar } from './components/layout/Topbar';
 import Dashboard from './components/pages/Dashboard';
+import Tasks from './components/pages/Tasks';
 
 
 function App() {
   return (
     <Layout>
       <Dashboard/>
+      <Tasks/>
     </Layout>
   );
 }
