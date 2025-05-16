@@ -8,8 +8,6 @@ function App() {
   return (
     <Layout>
       <Dashboard/>
-      <Sidebar/>
-      <Topbar/>
     </Layout>
   );
 }
