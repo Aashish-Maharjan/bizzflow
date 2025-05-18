@@ -1,31 +1,77 @@
-import { Home, ClipboardList, Banknote, ShieldCheck, Users, Settings } from 'lucide-react';
-import { Link } from 'react-router-dom';
+// src/components/layout/Sidebar.jsx
+import { Link, useLocation } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  ListChecks,
+  Briefcase,
+  ShieldCheck,
+  Users,
+  Settings,
+} from 'lucide-react';
 
-const navItems = [
-  { name: 'Dashboard', icon: Home, path: '/' },
-  { name: 'Tasks', icon: ClipboardList, path: '/tasks' },
-  { name: 'Payroll', icon: Banknote, path: '/payroll' },
-  { name: 'Compliance', icon: ShieldCheck, path: '/compliance' },
-  { name: 'Vendors', icon: Users, path: '/vendors' },
-  { name: 'Settings', icon: Settings, path: '/settings' },
-];
+export const Sidebar = () => {
+  const location = useLocation();
+  const isActive = (path) => location.pathname === path;
 
-export function Sidebar() {
   return (
-    <aside className="w-64 bg-white dark:bg-gray-800 shadow-md h-screen p-4 hidden md:block">
-      <h1 className="text-2xl font-bold text-center text-blue-600 mb-6">BizFlow Nepal</h1>
-      <nav className="space-y-2">
-        {navItems.map(({ name, icon: Icon, path }) => (
-          <Link
-            key={name}
-            to={path}
-            className="flex items-center space-x-3 p-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900 text-gray-700 dark:text-white"
-          >
-            <Icon className="w-5 h-5" />
-            <span>{name}</span>
-          </Link>
-        ))}
+    <aside className="w-64 bg-gray-800 text-white p-4">
+      <h1 className="text-2xl font-bold mb-6">BizFlow Nepal</h1>
+      <nav className="space-y-4">
+        <Link
+          to="/"
+          className={`flex items-center gap-2 p-2 rounded hover:bg-gray-700 ${
+            isActive('/') ? 'bg-gray-700' : ''
+          }`}
+        >
+          <LayoutDashboard size={18} />
+          Dashboard
+        </Link>
+        <Link
+          to="/tasks"
+          className={`flex items-center gap-2 p-2 rounded hover:bg-gray-700 ${
+            isActive('/tasks') ? 'bg-gray-700' : ''
+          }`}
+        >
+          <ListChecks size={18} />
+          Tasks
+        </Link>
+        <Link
+          to="/payroll"
+          className={`flex items-center gap-2 p-2 rounded hover:bg-gray-700 ${
+            isActive('/payroll') ? 'bg-gray-700' : ''
+          }`}
+        >
+          <Briefcase size={18} />
+          Payroll
+        </Link>
+        <Link
+          to="/compliance"
+          className={`flex items-center gap-2 p-2 rounded hover:bg-gray-700 ${
+            isActive('/compliance') ? 'bg-gray-700' : ''
+          }`}
+        >
+          <ShieldCheck size={18} />
+          Compliance
+        </Link>
+        <Link
+          to="/vendors"
+          className={`flex items-center gap-2 p-2 rounded hover:bg-gray-700 ${
+            isActive('/vendors') ? 'bg-gray-700' : ''
+          }`}
+        >
+          <Users size={18} />
+          Vendors
+        </Link>
+        <Link
+          to="/settings"
+          className={`flex items-center gap-2 p-2 rounded hover:bg-gray-700 ${
+            isActive('/settings') ? 'bg-gray-700' : ''
+          }`}
+        >
+          <Settings size={18} />
+          Settings
+        </Link>
       </nav>
     </aside>
   );
-}
+};

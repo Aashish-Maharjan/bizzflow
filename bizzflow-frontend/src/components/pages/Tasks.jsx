@@ -4,9 +4,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "../components/ui/Dialog";
-import { Input } from "../components/ui/Input";
-import { Button } from "../components/ui/Button";
+} from "../ui/Dialog";
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
