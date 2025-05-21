@@ -2,7 +2,7 @@ import {
     LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
     PieChart, Pie, Cell
   } from 'recharts';
-import Card from './Card';
+import Card from '../ui/Card';
   const lineData = [
     { month: 'Jan', payments: 120000 },
     { month: 'Feb', payments: 95000 },
