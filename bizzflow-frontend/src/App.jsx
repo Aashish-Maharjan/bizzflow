@@ -7,11 +7,14 @@ import Compliance from './components/pages/Compliance';
 import Vendors from './components/pages/Vendors';
 import Settings from './components/pages/Settings';
 import Payroll from './components/pages/Payroll';
+import Login from './components/pages/Login';
 
 function App() {
   return (
       <Layout>
         <Routes>
+        <Route path="/login" element={<Login />} />
+
         <Route path="/" element={<Dashboard />} />
   <Route path="/tasks" element={<Tasks />} />
   <Route path="/payroll" element={<Payroll />} />
