@@ -1,5 +1,5 @@
 // src/App.jsx
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import Dashboard from './components/pages/Dashboard';
 import Tasks from './components/pages/Tasks';
@@ -11,18 +11,17 @@ import Login from './components/pages/Login';
 
 function App() {
   return (
-      <Layout>
-        <Routes>
+    <Layout>
+      <Routes>
         <Route path="/login" element={<Login />} />
-
         <Route path="/" element={<Dashboard />} />
-  <Route path="/tasks" element={<Tasks />} />
-  <Route path="/payroll" element={<Payroll />} />
-  <Route path="/compliance" element={<Compliance />} />
-  <Route path="/vendors" element={<Vendors />} />
-  <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </Layout>
+        <Route path="/tasks" element={<Tasks />} />
+        <Route path="/payroll" element={<Payroll />} />
+        <Route path="/compliance" element={<Compliance />} />
+        <Route path="/vendors" element={<Vendors />} />
+        <Route path="/settings" element={<Settings />} />
+      </Routes>
+    </Layout>
   );
 }
 
