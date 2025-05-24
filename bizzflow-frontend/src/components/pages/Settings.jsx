@@ -36,149 +36,196 @@ export default function Settings() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
-      {/* Organization Profile */}
-      <Card>
-        <h2 className="text-white text-lg font-semibold mb-4">Organization Profile</h2>
-        <div className="space-y-4">
-          <div>
-            <Label>Organization Name</Label>
-            <Input
-              placeholder="e.g. BizFlow Nepal"
-              value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Organization Type</Label>
-            <select
-              value={orgType}
-              onChange={(e) => setOrgType(e.target.value)}
-              className="w-full border rounded-md p-2 text-sm"
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <h1 className="text-2xl font-bold text-foreground dark:text-white mb-8">Settings</h1>
+      
+      <div className="grid gap-8">
+        {/* Organization Profile */}
+        <Card className="p-6 bg-card dark:bg-gray-800/40 shadow-lg">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-foreground dark:text-white">Organization Profile</h2>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="hover:bg-primary/90 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white"
             >
-              <option value="">Select Type</option>
-              <option value="Private">Private</option>
-              <option value="Public">Public</option>
-              <option value="Non-Profit">Non-Profit</option>
-              <option value="Government">Government</option>
-            </select>
-          </div>
-          <div>
-            <Label>Email</Label>
-            <Input
-              placeholder="e.g. info@bizflow.com"
-              value={orgEmail}
-              onChange={(e) => setOrgEmail(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Contact Number</Label>
-            <Input
-              placeholder="e.g. 9800000000"
-              value={orgPhone}
-              onChange={(e) => setOrgPhone(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Address</Label>
-            <Input
-              placeholder="e.g. Kathmandu, Nepal"
-              value={orgAddress}
-              onChange={(e) => setOrgAddress(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>PAN Number</Label>
-            <Input
-              placeholder="e.g. 123456789"
-              value={orgPAN}
-              onChange={(e) => setOrgPAN(e.target.value)}
-            />
-          </div>
-          <Button>Save Profile</Button>
-        </div>
-      </Card>
-
-      {/* Custom Task Categories */}
-      <Card>
-        <h2 className="text-white text-lg font-semibold mb-4">Custom Task Categories</h2>
-        <div className="space-y-4">
-          {categories.map((cat, index) => (
-            <div key={index} className="space-y-2 border rounded p-4 relative">
-              <div className="flex justify-between items-center">
-                <Label>Category Name</Label>
-                {categories.length > 1 && (
-                  <button
-                    onClick={() => handleRemoveCategory(index)}
-                    className="text-red-500 text-sm"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-              <Input
-                placeholder={`Category ${index + 1}`}
-                value={cat.name}
-                onChange={(e) =>
-                  handleCategoryChange(index, 'name', e.target.value)
-                }
-              />
-              <Label>Description (optional)</Label>
-              <Input
-                placeholder="Short description"
-                value={cat.description}
-                onChange={(e) =>
-                  handleCategoryChange(index, 'description', e.target.value)
-                }
-              />
-            </div>
-          ))}
-          <Button onClick={handleAddCategory}>Add Category</Button>
-        </div>
-      </Card>
-
-      {/* Wallet Integration */}
-      <Card>
-        <h2 className="text-white text-lg font-semibold mb-4">Digital Wallet Integration</h2>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label>Enable eSewa</Label>
-            <Switch checked={esewaEnabled} onCheckedChange={setEsewaEnabled} />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label>Enable Khalti</Label>
-            <Switch checked={khaltiEnabled} onCheckedChange={setKhaltiEnabled} />
-          </div>
-        </div>
-      </Card>
-
-      {/* IRD Integration */}
-      <Card>
-        <h2 className="text-white text-lg font-semibold mb-4">IRD PAN/Tax Integration</h2>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label>Connect to IRD Nepal</Label>
-            <Button onClick={() => setIrdConnected(!irdConnected)}>
-              {irdConnected ? 'Disconnect' : 'Connect'}
+              Save Changes
             </Button>
           </div>
-        </div>
-      </Card>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground dark:text-gray-100">Organization Name</Label>
+              <Input
+                placeholder="e.g. BizFlow Nepal"
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-400"
+              />
+            </div>
 
-      {/* Notification Settings */}
-      <Card>
-        <h2 className="text-white text-lg font-semibold mb-4">Notification Settings</h2>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label>Email Notifications</Label>
-            <Switch checked={emailNotif} onCheckedChange={setEmailNotif} />
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground dark:text-gray-100">Organization Type</Label>
+              <select
+                value={orgType}
+                onChange={(e) => setOrgType(e.target.value)}
+                className="w-full bg-background dark:bg-gray-700 text-foreground dark:text-gray-100 border border-input dark:border-gray-600 rounded-md h-10 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 dark:placeholder-gray-400"
+              >
+                <option value="">Select Type</option>
+                <option value="Private">Private</option>
+                <option value="Public">Public</option>
+                <option value="Non-Profit">Non-Profit</option>
+                <option value="Government">Government</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground dark:text-gray-100">Email</Label>
+              <Input
+                type="email"
+                placeholder="e.g. info@bizflow.com"
+                value={orgEmail}
+                onChange={(e) => setOrgEmail(e.target.value)}
+                className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-400"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground dark:text-gray-100">Contact Number</Label>
+              <Input
+                type="tel"
+                placeholder="e.g. 9800000000"
+                value={orgPhone}
+                onChange={(e) => setOrgPhone(e.target.value)}
+                className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-400"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground dark:text-gray-100">Address</Label>
+              <Input
+                placeholder="e.g. Kathmandu, Nepal"
+                value={orgAddress}
+                onChange={(e) => setOrgAddress(e.target.value)}
+                className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-400"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground dark:text-gray-100">PAN Number</Label>
+              <Input
+                placeholder="e.g. 123456789"
+                value={orgPAN}
+                onChange={(e) => setOrgPAN(e.target.value)}
+                className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-400"
+              />
+            </div>
           </div>
-          <div className="flex items-center justify-between">
-            <Label>SMS Notifications</Label>
-            <Switch checked={smsNotif} onCheckedChange={setSmsNotif} />
+        </Card>
+
+        {/* Custom Task Categories */}
+        <Card className="p-6 bg-card dark:bg-gray-800/40 shadow-lg">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-foreground dark:text-white">Custom Task Categories</h2>
+            <Button 
+              onClick={handleAddCategory}
+              variant="outline"
+              size="sm"
+              className="hover:bg-primary/90 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white"
+            >
+              Add Category
+            </Button>
           </div>
-        </div>
-      </Card>
+
+          <div className="space-y-4">
+            {categories.map((cat, index) => (
+              <div 
+                key={index} 
+                className="p-4 rounded-lg border border-border dark:border-gray-600 bg-card dark:bg-gray-700/50 space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium text-foreground dark:text-gray-100">Category {index + 1}</Label>
+                  {categories.length > 1 && (
+                    <Button
+                      onClick={() => handleRemoveCategory(index)}
+                      variant="destructive"
+                      size="sm"
+                      className="h-8 dark:text-white"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Category Name"
+                      value={cat.name}
+                      onChange={(e) =>
+                        handleCategoryChange(index, 'name', e.target.value)
+                      }
+                      className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-400"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Short description (optional)"
+                      value={cat.description}
+                      onChange={(e) =>
+                        handleCategoryChange(index, 'description', e.target.value)
+                      }
+                      className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-400"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Digital Wallet Integration */}
+        <Card className="p-6 bg-card dark:bg-gray-800/40 shadow-lg">
+          <h2 className="text-xl font-semibold text-foreground dark:text-white mb-6">Digital Wallet Integration</h2>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-foreground dark:text-gray-100">Enable eSewa</Label>
+                <p className="text-sm text-muted-foreground dark:text-gray-300">Accept payments through eSewa digital wallet</p>
+              </div>
+              <Switch checked={esewaEnabled} onCheckedChange={setEsewaEnabled} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-foreground dark:text-gray-100">Enable Khalti</Label>
+                <p className="text-sm text-muted-foreground dark:text-gray-300">Accept payments through Khalti digital wallet</p>
+              </div>
+              <Switch checked={khaltiEnabled} onCheckedChange={setKhaltiEnabled} />
+            </div>
+          </div>
+        </Card>
+
+        {/* Notification Settings */}
+        <Card className="p-6 bg-card dark:bg-gray-800/40 shadow-lg">
+          <h2 className="text-xl font-semibold text-foreground dark:text-white mb-6">Notification Settings</h2>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-foreground dark:text-gray-100">Email Notifications</Label>
+                <p className="text-sm text-muted-foreground dark:text-gray-300">Receive updates and alerts via email</p>
+              </div>
+              <Switch checked={emailNotif} onCheckedChange={setEmailNotif} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-foreground dark:text-gray-100">SMS Notifications</Label>
+                <p className="text-sm text-muted-foreground dark:text-gray-300">Receive updates and alerts via SMS</p>
+              </div>
+              <Switch checked={smsNotif} onCheckedChange={setSmsNotif} />
+            </div>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

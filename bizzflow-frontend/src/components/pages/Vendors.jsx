@@ -144,11 +144,11 @@ const Vendors = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
                 {/* Header Section */}
                 <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Vendor Management</h1>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Vendor Management</h1>
                     <div className="space-x-4">
                         <button
                             onClick={() => {
@@ -185,34 +185,34 @@ const Vendors = () => {
                 </div>
 
                 {/* Vendors List */}
-                <div className="bg-white shadow rounded-lg mb-8">
+                <div className="bg-white dark:bg-gray-800 shadow rounded-lg mb-8">
                     <div className="px-4 py-5 sm:px-6">
-                        <h2 className="text-xl font-semibold text-gray-900">Vendors</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Vendors</h2>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PAN/VAT</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Contact</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">PAN/VAT</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Category</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 {vendors.map((vendor) => (
                                     <tr key={vendor._id}>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-gray-900">{vendor.name}</div>
+                                            <div className="text-sm font-medium text-gray-900 dark:text-white">{vendor.name}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">{vendor.email}</div>
-                                            <div className="text-sm text-gray-500">{vendor.phone}</div>
+                                            <div className="text-sm text-gray-900 dark:text-white">{vendor.email}</div>
+                                            <div className="text-sm text-gray-500 dark:text-gray-400">{vendor.phone}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">PAN: {vendor.panNumber}</div>
-                                            <div className="text-sm text-gray-500">VAT: {vendor.vatNumber || 'N/A'}</div>
+                                            <div className="text-sm text-gray-900 dark:text-white">PAN: {vendor.panNumber}</div>
+                                            <div className="text-sm text-gray-500 dark:text-gray-400">VAT: {vendor.vatNumber || 'N/A'}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
@@ -255,40 +255,40 @@ const Vendors = () => {
                 </div>
 
                 {/* Purchase Orders List */}
-                <div className="bg-white shadow rounded-lg">
+                <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
                     <div className="px-4 py-5 sm:px-6">
-                        <h2 className="text-xl font-semibold text-gray-900">Purchase Orders</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Purchase Orders</h2>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO Number</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">PO Number</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Vendor</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Due Date</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 {purchaseOrders.map((po) => (
                                     <tr key={po._id}>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-gray-900">{po._id}</div>
+                                            <div className="text-sm font-medium text-gray-900 dark:text-white">{po._id}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">
+                                            <div className="text-sm text-gray-900 dark:text-white">
                                                 {vendors.find(v => v._id === po.vendorId)?.name}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">
+                                            <div className="text-sm text-gray-900 dark:text-white">
                                                 NPR {calculateTotal(po.items).toLocaleString()}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">{new Date(po.dueDate).toLocaleDateString()}</div>
+                                            <div className="text-sm text-gray-900 dark:text-white">{new Date(po.dueDate).toLocaleDateString()}</div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -326,15 +326,15 @@ const Vendors = () => {
                             <div className="fixed inset-0 transition-opacity" aria-hidden="true">
                                 <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
                             </div>
-                            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
                                 <form onSubmit={handleVendorSubmit}>
                                     <div>
-                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
+                                        <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
                                             {selectedVendor ? 'Edit Vendor' : 'Add New Vendor'}
                                         </h3>
                                         <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
                                             <div className="sm:col-span-6">
-                                                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                                                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                                     Vendor Name
                                                 </label>
                                                 <input
@@ -343,12 +343,12 @@ const Vendors = () => {
                                                     id="name"
                                                     value={vendorForm.name}
                                                     onChange={(e) => setVendorForm({ ...vendorForm, name: e.target.value })}
-                                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                 />
                                             </div>
 
                                             <div className="sm:col-span-6 mb-4">
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                                     Registration Type
                                                 </label>
                                                 <div className="flex items-center space-x-4">
@@ -366,7 +366,7 @@ const Vendors = () => {
                                                             })}
                                                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
                                                         />
-                                                        <label htmlFor="pan" className="ml-2 block text-sm text-gray-700">
+                                                        <label htmlFor="pan" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                                                             PAN Number
                                                         </label>
                                                     </div>
@@ -384,7 +384,7 @@ const Vendors = () => {
                                                             })}
                                                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
                                                         />
-                                                        <label htmlFor="vat" className="ml-2 block text-sm text-gray-700">
+                                                        <label htmlFor="vat" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                                                             VAT Number
                                                         </label>
                                                     </div>
@@ -392,7 +392,7 @@ const Vendors = () => {
                                             </div>
 
                                             <div className="sm:col-span-6">
-                                                <label htmlFor={vendorForm.registrationType + "Number"} className="block text-sm font-medium text-gray-700">
+                                                <label htmlFor={vendorForm.registrationType + "Number"} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                                     {vendorForm.registrationType.toUpperCase()} Number
                                                 </label>
                                                 <input
@@ -404,13 +404,13 @@ const Vendors = () => {
                                                         ...vendorForm,
                                                         [vendorForm.registrationType + "Number"]: e.target.value
                                                     })}
-                                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                     placeholder={`Enter ${vendorForm.registrationType.toUpperCase()} number`}
                                                 />
                                             </div>
 
                                             <div className="sm:col-span-6">
-                                                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                                     Email
                                                 </label>
                                                 <input
@@ -419,12 +419,12 @@ const Vendors = () => {
                                                     id="email"
                                                     value={vendorForm.email}
                                                     onChange={(e) => setVendorForm({ ...vendorForm, email: e.target.value })}
-                                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                 />
                                             </div>
 
                                             <div className="sm:col-span-6">
-                                                <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                                                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                                     Phone
                                                 </label>
                                                 <input
@@ -433,12 +433,12 @@ const Vendors = () => {
                                                     id="phone"
                                                     value={vendorForm.phone}
                                                     onChange={(e) => setVendorForm({ ...vendorForm, phone: e.target.value })}
-                                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                 />
                                             </div>
 
                                             <div className="sm:col-span-6">
-                                                <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+                                                <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                                     Address
                                                 </label>
                                                 <input
@@ -447,7 +447,7 @@ const Vendors = () => {
                                                     id="address"
                                                     value={vendorForm.address}
                                                     onChange={(e) => setVendorForm({ ...vendorForm, address: e.target.value })}
-                                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                 />
                                             </div>
                                         </div>
@@ -462,7 +462,7 @@ const Vendors = () => {
                                         <button
                                             type="button"
                                             onClick={() => setShowVendorModal(false)}
-                                            className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                                            className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
                                         >
                                             Cancel
                                         </button>
@@ -480,13 +480,13 @@ const Vendors = () => {
                             <div className="fixed inset-0 transition-opacity" aria-hidden="true">
                                 <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
                             </div>
-                            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
                                 <form onSubmit={handlePOSubmit}>
                                     <div>
-                                        <h3 className="text-lg leading-6 font-medium text-gray-900">Create Purchase Order</h3>
+                                        <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Create Purchase Order</h3>
                                         <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
                                             <div className="sm:col-span-6">
-                                                <label htmlFor="vendor" className="block text-sm font-medium text-gray-700">
+                                                <label htmlFor="vendor" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                                     Select Vendor
                                                 </label>
                                                 <select
@@ -494,7 +494,7 @@ const Vendors = () => {
                                                     name="vendor"
                                                     value={poForm.vendorId}
                                                     onChange={(e) => setPOForm({ ...poForm, vendorId: e.target.value })}
-                                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                 >
                                                     <option value="">Select a vendor</option>
                                                     {vendors.map((vendor) => (
@@ -509,7 +509,7 @@ const Vendors = () => {
                                             {poForm.items.map((item, index) => (
                                                 <div key={index} className="sm:col-span-6 grid grid-cols-12 gap-4">
                                                     <div className="col-span-6">
-                                                        <label className="block text-sm font-medium text-gray-700">Description</label>
+                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
                                                         <input
                                                             type="text"
                                                             value={item.description}
@@ -518,11 +518,11 @@ const Vendors = () => {
                                                                 newItems[index].description = e.target.value;
                                                                 setPOForm({ ...poForm, items: newItems });
                                                             }}
-                                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                            className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                         />
                                                     </div>
                                                     <div className="col-span-3">
-                                                        <label className="block text-sm font-medium text-gray-700">Quantity</label>
+                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Quantity</label>
                                                         <input
                                                             type="number"
                                                             value={item.quantity}
@@ -531,11 +531,11 @@ const Vendors = () => {
                                                                 newItems[index].quantity = parseInt(e.target.value);
                                                                 setPOForm({ ...poForm, items: newItems });
                                                             }}
-                                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                            className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                         />
                                                     </div>
                                                     <div className="col-span-3">
-                                                        <label className="block text-sm font-medium text-gray-700">Unit Price</label>
+                                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Unit Price</label>
                                                         <input
                                                             type="number"
                                                             value={item.unitPrice}
@@ -544,7 +544,7 @@ const Vendors = () => {
                                                                 newItems[index].unitPrice = parseFloat(e.target.value);
                                                                 setPOForm({ ...poForm, items: newItems });
                                                             }}
-                                                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                            className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                         />
                                                     </div>
                                                 </div>
@@ -564,7 +564,7 @@ const Vendors = () => {
                                             </div>
 
                                             <div className="sm:col-span-6">
-                                                <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">
+                                                <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                                     Due Date
                                                 </label>
                                                 <input
@@ -573,7 +573,7 @@ const Vendors = () => {
                                                     name="dueDate"
                                                     value={poForm.dueDate}
                                                     onChange={(e) => setPOForm({ ...poForm, dueDate: e.target.value })}
-                                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                 />
                                             </div>
                                         </div>
@@ -588,7 +588,7 @@ const Vendors = () => {
                                         <button
                                             type="button"
                                             onClick={() => setShowPOModal(false)}
-                                            className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                                            className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
                                         >
                                             Cancel
                                         </button>

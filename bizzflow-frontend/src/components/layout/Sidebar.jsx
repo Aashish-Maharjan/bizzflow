@@ -11,17 +11,18 @@ import {
   FileText,
   PieChart,
   Bell,
+  Trash2,
+  Clock,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
   { name: 'Tasks', icon: ListChecks, path: '/tasks' },
   { name: 'Payroll', icon: Briefcase, path: '/payroll' },
+  { name: 'Attendance', icon: Clock, path: '/attendance' },
   { name: 'Compliance', icon: ShieldCheck, path: '/compliance' },
   { name: 'Vendors', icon: Users, path: '/vendors' },
-  { name: 'Reports', icon: FileText, path: '/reports' },
-  { name: 'Analytics', icon: PieChart, path: '/analytics' },
-  { name: 'Notifications', icon: Bell, path: '/notifications' },
+  { name: 'Trash', icon: Trash2, path: '/trash' },
   { name: 'Settings', icon: Settings, path: '/settings' },
 ];
 

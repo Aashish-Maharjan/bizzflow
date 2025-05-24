@@ -8,6 +8,8 @@ import Vendors from './components/pages/Vendors';
 import Settings from './components/pages/Settings';
 import Payroll from './components/pages/Payroll';
 import Login from './components/pages/Login';
+import Trash from './components/pages/Trash';
+import Attendance from './components/pages/Attendance';
 
 function App() {
   return (
@@ -17,8 +19,10 @@ function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/payroll" element={<Payroll />} />
+        <Route path="/attendance" element={<Attendance />} />
         <Route path="/compliance" element={<Compliance />} />
         <Route path="/vendors" element={<Vendors />} />
+        <Route path="/trash" element={<Trash />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
     </Layout>
