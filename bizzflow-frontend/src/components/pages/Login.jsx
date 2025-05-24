@@ -1,10 +1,13 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
-import axios from "axios";
 import { FiMail, FiLock, FiUser, FiPhone, FiEye, FiEyeOff } from "react-icons/fi";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function Login() {
+  const navigate = useNavigate();
+  const { login, register } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -29,24 +32,19 @@ export default function Login() {
 
     try {
       if (isLogin) {
-        const res = await axios.post("/api/auth/login", {
-          email: formData.email,
-          password: formData.password,
-        });
-        localStorage.setItem("token", res.data.token);
-        window.location.href = "/";
+        await login(formData.email, formData.password);
+        navigate('/');
       } else {
         if (formData.password !== formData.confirmPassword) {
           throw new Error("Passwords do not match");
         }
-        const res = await axios.post("/api/auth/register", {
+        await register({
           name: formData.name,
           email: formData.email,
           password: formData.password,
           phone: formData.phone,
         });
-        localStorage.setItem("token", res.data.token);
-        window.location.href = "/";
+        navigate('/');
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message || "Something went wrong");
