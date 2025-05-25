@@ -33,9 +33,42 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  joinDate: {
-    type: Date,
-    default: Date.now
+  basicSalary: {
+    type: Number,
+    default: 0
+  },
+  employmentDetails: {
+    joinDate: {
+      type: Date,
+      default: Date.now
+    },
+    employmentType: {
+      type: String,
+      enum: ['full-time', 'part-time', 'contract'],
+      default: 'full-time'
+    },
+    designation: {
+      type: String,
+      trim: true
+    }
+  },
+  bankDetails: {
+    accountName: {
+      type: String,
+      trim: true
+    },
+    accountNumber: {
+      type: String,
+      trim: true
+    },
+    bankName: {
+      type: String,
+      trim: true
+    },
+    branch: {
+      type: String,
+      trim: true
+    }
   },
   isActive: {
     type: Boolean,
