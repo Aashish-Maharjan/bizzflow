@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
-const payrollSchema = new mongoose.Schema({
+const PayrollSchema = new mongoose.Schema({
   employee: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'user',
     required: true
   },
   basicSalary: {
@@ -36,8 +36,13 @@ const payrollSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'paid', 'cancelled'],
+    enum: ['pending', 'paid'],
     default: 'pending'
+  },
+  generatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'user',
+    required: true
   },
   paidDate: {
     type: Date
@@ -50,9 +55,9 @@ const payrollSchema = new mongoose.Schema({
 });
 
 // Calculate net salary before saving
-payrollSchema.pre('save', function(next) {
+PayrollSchema.pre('save', function(next) {
   this.netSalary = this.basicSalary + (this.allowances || 0) + (this.bonus || 0) - (this.deductions || 0);
   next();
 });
 
-module.exports = mongoose.model('Payroll', payrollSchema); 
+module.exports = mongoose.model('payroll', PayrollSchema); 

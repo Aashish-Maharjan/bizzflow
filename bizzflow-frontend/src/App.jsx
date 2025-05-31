@@ -10,10 +10,13 @@ import Payroll from './components/pages/Payroll';
 import Login from './components/pages/Login';
 import Trash from './components/pages/Trash';
 import Attendance from './components/pages/Attendance';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ChangePassword from './components/pages/ChangePassword';
+import { useAuth } from './contexts/AuthContext';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-// Protected Route component
-const ProtectedRoute = ({ children }) => {
+// Protected Route component with role-based access
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
@@ -22,6 +25,10 @@ const ProtectedRoute = ({ children }) => {
   
   if (!user) {
     return <Navigate to="/login" />;
+  }
+
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/" />;
   }
   
   return children;
@@ -42,65 +49,76 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
-function AppRoutes() {
-  return (
-    <Layout>
-      <Routes>
-        <Route path="/login" element={
-          <PublicRoute>
-            <Login />
-          </PublicRoute>
-        } />
-        <Route path="/" element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="/tasks" element={
-          <ProtectedRoute>
-            <Tasks />
-          </ProtectedRoute>
-        } />
-        <Route path="/payroll" element={
-          <ProtectedRoute>
-            <Payroll />
-          </ProtectedRoute>
-        } />
-        <Route path="/attendance" element={
-          <ProtectedRoute>
-            <Attendance />
-          </ProtectedRoute>
-        } />
-        <Route path="/compliance" element={
-          <ProtectedRoute>
-            <Compliance />
-          </ProtectedRoute>
-        } />
-        <Route path="/vendors" element={
-          <ProtectedRoute>
-            <Vendors />
-          </ProtectedRoute>
-        } />
-        <Route path="/trash" element={
-          <ProtectedRoute>
-            <Trash />
-          </ProtectedRoute>
-        } />
-        <Route path="/settings" element={
-          <ProtectedRoute>
-            <Settings />
-          </ProtectedRoute>
-        } />
-      </Routes>
-    </Layout>
-  );
-}
-
 function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <>
+      <Layout>
+        <Routes>
+          <Route path="/login" element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } />
+          <Route path="/" element={
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'employee']}>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/tasks" element={
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'employee']}>
+              <Tasks />
+            </ProtectedRoute>
+          } />
+          <Route path="/payroll" element={
+            <ProtectedRoute allowedRoles={['admin', 'manager']}>
+              <Payroll />
+            </ProtectedRoute>
+          } />
+          <Route path="/attendance" element={
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'employee']}>
+              <Attendance />
+            </ProtectedRoute>
+          } />
+          <Route path="/compliance" element={
+            <ProtectedRoute allowedRoles={['admin', 'manager']}>
+              <Compliance />
+            </ProtectedRoute>
+          } />
+          <Route path="/vendors" element={
+            <ProtectedRoute allowedRoles={['admin', 'manager']}>
+              <Vendors />
+            </ProtectedRoute>
+          } />
+          <Route path="/trash" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Trash />
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Settings />
+            </ProtectedRoute>
+          } />
+          <Route path="/change-password" element={
+            <ProtectedRoute allowedRoles={['admin', 'manager', 'employee']}>
+              <ChangePassword />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </Layout>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
+    </>
   );
 }
 

@@ -3,13 +3,23 @@ import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLocation } from 'react-router-dom';
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { isDarkMode } = useTheme();
+  const location = useLocation();
+
+  // Check if we're on the login route
+  const isLoginPage = location.pathname === '/login';
+
+  // If we're on the login page, render only the children without the layout
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   return (
-    <div className={`flex min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200`}>
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
       <AnimatePresence mode="wait">
         {sidebarOpen && (
           <motion.div
@@ -17,22 +27,22 @@ export default function Layout({ children }) {
             animate={{ x: 0 }}
             exit={{ x: -300 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-y-0 left-0 z-30 lg:relative"
+            className="w-64 flex-shrink-0"
           >
             <Sidebar />
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Topbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} isSidebarOpen={sidebarOpen} />
         <motion.main
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'lg:ml-0' : ''}`}
+          className="flex-1 overflow-auto"
         >
-          <div className="mx-auto max-w-screen-2xl p-4 md:p-6 lg:p-8">
+          <div className="container mx-auto px-4 py-6">
             {children}
           </div>
         </motion.main>

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from '../utils/axios';
 
 const AuthContext = createContext(null);
 
@@ -28,25 +28,39 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    const response = await axios.post('/api/auth/login', { email, password });
-    const { token } = response.data;
-    localStorage.setItem('token', token);
-    
-    // Get user data
-    const userResponse = await axios.get('/api/users/me');
-    setUser(userResponse.data);
-    return userResponse.data;
+    try {
+      const response = await axios.post('/api/auth/login', { email, password });
+      const { token } = response.data;
+      localStorage.setItem('token', token);
+      
+      // Get user data
+      const userResponse = await axios.get('/api/users/me');
+      setUser(userResponse.data);
+      return userResponse.data;
+    } catch (error) {
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      throw error;
+    }
   };
 
   const register = async (userData) => {
-    const response = await axios.post('/api/auth/register', userData);
-    const { token } = response.data;
-    localStorage.setItem('token', token);
-    
-    // Get user data
-    const userResponse = await axios.get('/api/users/me');
-    setUser(userResponse.data);
-    return userResponse.data;
+    try {
+      const response = await axios.post('/api/auth/register', userData);
+      const { token } = response.data;
+      localStorage.setItem('token', token);
+      
+      // Get user data
+      const userResponse = await axios.get('/api/users/me');
+      setUser(userResponse.data);
+      return userResponse.data;
+    } catch (error) {
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      throw error;
+    }
   };
 
   const logout = () => {

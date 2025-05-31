@@ -4,6 +4,7 @@ import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { FiMail, FiLock, FiUser, FiPhone, FiEye, FiEyeOff } from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContext";
+import { toast } from "react-toastify";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function Login() {
     name: "",
     phone: "",
     confirmPassword: "",
+    role: "employee"
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -33,7 +35,8 @@ export default function Login() {
     try {
       if (isLogin) {
         await login(formData.email, formData.password);
-        navigate('/');
+        toast.success("Login successful!");
+        navigate('/', { replace: true });
       } else {
         if (formData.password !== formData.confirmPassword) {
           throw new Error("Passwords do not match");
@@ -43,11 +46,29 @@ export default function Login() {
           email: formData.email,
           password: formData.password,
           phone: formData.phone,
+          role: formData.role,
+          department: 'general',
+          basicSalary: 0,
+          employmentDetails: {
+            employmentType: 'full-time',
+            designation: formData.role === 'admin' ? 'Administrator' : 'Employee',
+            joinDate: new Date(),
+            probationPeriod: 3,
+            workLocation: 'office',
+            workHours: '40',
+            shiftType: 'day'
+          },
+          bankDetails: {
+            accountType: 'savings'
+          }
         });
-        navigate('/');
+        toast.success("Registration successful!");
+        navigate('/', { replace: true });
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || "Something went wrong");
+      const errorMessage = err.response?.data?.message || err.message || "Something went wrong";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -78,6 +99,7 @@ export default function Login() {
                   name: "",
                   phone: "",
                   confirmPassword: "",
+                  role: "employee"
                 });
               }}
               className="ml-2 font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
@@ -119,6 +141,18 @@ export default function Login() {
                     placeholder="Phone Number"
                     className="pl-12"
                   />
+                </div>
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Role</label>
+                  <select
+                    name="role"
+                    value={formData.role}
+                    onChange={handleChange}
+                    className="w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="employee">Employee</option>
+                    <option value="admin">Admin</option>
+                  </select>
                 </div>
               </>
             )}
@@ -197,31 +231,25 @@ export default function Login() {
             </div>
           )}
 
-          {isLogin && (
-            <div className="flex items-center justify-end">
-              <button
-                type="button"
-                className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300"
-              >
-                Forgot your password?
-              </button>
-            </div>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full flex justify-center py-2 px-4"
-            disabled={loading}
-          >
-            {loading ? (
-              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              <span>{isLogin ? "Sign in" : "Create account"}</span>
-            )}
-          </Button>
+          <div>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full flex justify-center py-2 px-4"
+            >
+              {loading ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {isLogin ? "Signing in..." : "Creating account..."}
+                </span>
+              ) : (
+                <span>{isLogin ? "Sign in" : "Create account"}</span>
+              )}
+            </Button>
+          </div>
         </form>
 
         {/* Social Login Options */}

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 export function Topbar({ onMenuClick, isSidebarOpen, alerts = [] }) {
   const [showAlerts, setShowAlerts] = useState(false);
@@ -22,6 +23,16 @@ export function Topbar({ onMenuClick, isSidebarOpen, alerts = [] }) {
   const adminRef = useRef();
   const navigate = useNavigate();
   const { isDarkMode, toggleDarkMode } = useTheme();
+  const { user, logout } = useAuth();
+
+  // Get user initials
+  const getInitials = (name) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase();
+  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -38,12 +49,12 @@ export function Topbar({ onMenuClick, isSidebarOpen, alerts = [] }) {
   }, []);
 
   const handleLogout = () => {
-    localStorage.clear();
+    logout();
     navigate("/login");
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-4">
           <button
@@ -125,55 +136,60 @@ export function Topbar({ onMenuClick, isSidebarOpen, alerts = [] }) {
           </div>
 
           {/* User Menu */}
-          <div ref={adminRef} className="relative">
-            <button
-              onClick={() => setShowAdminMenu(!showAdminMenu)}
-              className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
-                <span className="text-indigo-600 dark:text-indigo-300 font-medium text-sm">JD</span>
-              </div>
-              <span className="hidden md:block text-sm font-medium text-gray-700 dark:text-gray-300">
-                John Doe
-              </span>
-            </button>
-
-            {showAdminMenu && (
-              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
-                <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">John Doe</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">admin@bizzflow.com</p>
+          {user && (
+            <div ref={adminRef} className="relative">
+              <button
+                onClick={() => setShowAdminMenu(!showAdminMenu)}
+                className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
+                  <span className="text-indigo-600 dark:text-indigo-300 font-medium text-sm">
+                    {getInitials(user.name)}
+                  </span>
                 </div>
+                <span className="hidden md:block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {user.name}
+                </span>
+              </button>
 
-                <button
-                  onClick={() => {
-                    navigate("/settings");
-                    setShowAdminMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
-                >
-                  <Settings className="w-4 h-4" /> Settings
-                </button>
+              {showAdminMenu && (
+                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
+                  <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize mt-1">{user.role}</p>
+                  </div>
 
-                <button
-                  onClick={() => {
-                    navigate("/change-password");
-                    setShowAdminMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
-                >
-                  <Key className="w-4 h-4" /> Change Password
-                </button>
+                  <button
+                    onClick={() => {
+                      navigate("/settings");
+                      setShowAdminMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
+                  >
+                    <Settings className="w-4 h-4" /> Settings
+                  </button>
 
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/50 flex items-center gap-2"
-                >
-                  <LogOut className="w-4 h-4" /> Logout
-                </button>
-              </div>
-            )}
-          </div>
+                  <button
+                    onClick={() => {
+                      navigate("/change-password");
+                      setShowAdminMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
+                  >
+                    <Key className="w-4 h-4" /> Change Password
+                  </button>
+
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/50 flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>

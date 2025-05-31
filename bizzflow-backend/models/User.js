@@ -31,25 +31,107 @@ const userSchema = new mongoose.Schema({
   },
   department: {
     type: String,
+    required: true,
     trim: true
   },
   basicSalary: {
     type: Number,
+    required: true,
     default: 0
   },
   employmentDetails: {
     joinDate: {
       type: Date,
+      required: true,
       default: Date.now
     },
     employmentType: {
       type: String,
-      enum: ['full-time', 'part-time', 'contract'],
+      enum: ['full-time', 'part-time', 'contract', 'intern'],
       default: 'full-time'
     },
     designation: {
       type: String,
+      required: true,
       trim: true
+    },
+    probationPeriod: {
+      type: Number,
+      default: 3
+    },
+    workLocation: {
+      type: String,
+      enum: ['office', 'remote', 'hybrid'],
+      default: 'office'
+    },
+    reportingTo: {
+      type: String,
+      trim: true
+    },
+    workHours: {
+      type: String,
+      default: '40'
+    },
+    shiftType: {
+      type: String,
+      enum: ['day', 'night', 'flexible'],
+      default: 'day'
+    }
+  },
+  personalDetails: {
+    dateOfBirth: {
+      type: Date
+    },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other']
+    },
+    maritalStatus: {
+      type: String,
+      enum: ['single', 'married', 'divorced', 'widowed']
+    },
+    nationality: {
+      type: String,
+      trim: true
+    },
+    address: {
+      street: {
+        type: String,
+        trim: true
+      },
+      city: {
+        type: String,
+        trim: true
+      },
+      state: {
+        type: String,
+        trim: true
+      },
+      country: {
+        type: String,
+        trim: true
+      },
+      postalCode: {
+        type: String,
+        trim: true
+      }
+    }
+  },
+  educationDetails: {
+    highestQualification: {
+      type: String,
+      trim: true
+    },
+    fieldOfStudy: {
+      type: String,
+      trim: true
+    },
+    institution: {
+      type: String,
+      trim: true
+    },
+    yearOfCompletion: {
+      type: Number
     }
   },
   bankDetails: {
@@ -66,6 +148,50 @@ const userSchema = new mongoose.Schema({
       trim: true
     },
     branch: {
+      type: String,
+      trim: true
+    },
+    ifscCode: {
+      type: String,
+      trim: true
+    },
+    accountType: {
+      type: String,
+      enum: ['savings', 'current'],
+      default: 'savings'
+    }
+  },
+  documents: {
+    idProof: {
+      type: String
+    },
+    addressProof: {
+      type: String
+    },
+    resume: {
+      type: String
+    },
+    offerLetter: {
+      type: String
+    },
+    photo: {
+      type: String
+    }
+  },
+  emergencyContact: {
+    name: {
+      type: String,
+      trim: true
+    },
+    relationship: {
+      type: String,
+      trim: true
+    },
+    phone: {
+      type: String,
+      trim: true
+    },
+    address: {
       type: String,
       trim: true
     }
@@ -91,9 +217,13 @@ userSchema.pre('save', async function(next) {
   }
 });
 
-// Method to compare password
+// Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw error;
+  }
 };
 
 module.exports = mongoose.model('User', userSchema); 
