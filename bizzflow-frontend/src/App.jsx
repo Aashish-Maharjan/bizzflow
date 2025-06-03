@@ -52,60 +52,60 @@ const PublicRoute = ({ children }) => {
 function App() {
   return (
     <>
-      <Layout>
-        <Routes>
-          <Route path="/login" element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          } />
-          <Route path="/" element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'employee']}>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/tasks" element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'employee']}>
-              <Tasks />
-            </ProtectedRoute>
-          } />
-          <Route path="/payroll" element={
-            <ProtectedRoute allowedRoles={['admin', 'manager']}>
-              <Payroll />
-            </ProtectedRoute>
-          } />
-          <Route path="/attendance" element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'employee']}>
-              <Attendance />
-            </ProtectedRoute>
-          } />
-          <Route path="/compliance" element={
-            <ProtectedRoute allowedRoles={['admin', 'manager']}>
-              <Compliance />
-            </ProtectedRoute>
-          } />
-          <Route path="/vendors" element={
-            <ProtectedRoute allowedRoles={['admin', 'manager']}>
-              <Vendors />
-            </ProtectedRoute>
-          } />
-          <Route path="/trash" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <Trash />
-            </ProtectedRoute>
-          } />
-          <Route path="/settings" element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <Settings />
-            </ProtectedRoute>
-          } />
-          <Route path="/change-password" element={
-            <ProtectedRoute allowedRoles={['admin', 'manager', 'employee']}>
-              <ChangePassword />
-            </ProtectedRoute>
-          } />
-        </Routes>
-      </Layout>
+    <Layout>
+      <Routes>
+        <Route path="/login" element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        } />
+        <Route path="/" element={
+          <ProtectedRoute allowedRoles={['admin', 'manager', 'employee']}>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/tasks" element={
+          <ProtectedRoute allowedRoles={['admin', 'manager', 'employee']}>
+            <Tasks />
+          </ProtectedRoute>
+        } />
+        <Route path="/payroll" element={
+          <ProtectedRoute allowedRoles={['admin', 'manager']}>
+            <Payroll />
+          </ProtectedRoute>
+        } />
+        <Route path="/attendance" element={
+          <ProtectedRoute allowedRoles={['admin', 'manager', 'employee']}>
+            <Attendance />
+          </ProtectedRoute>
+        } />
+        <Route path="/compliance" element={
+          <ProtectedRoute allowedRoles={['admin', 'manager']}>
+            <Compliance />
+          </ProtectedRoute>
+        } />
+        <Route path="/vendors" element={
+          <ProtectedRoute allowedRoles={['admin', 'manager']}>
+            <Vendors />
+          </ProtectedRoute>
+        } />
+        <Route path="/trash" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <Trash />
+          </ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <Settings />
+          </ProtectedRoute>
+        } />
+        <Route path="/change-password" element={
+          <ProtectedRoute allowedRoles={['admin', 'manager', 'employee']}>
+            <ChangePassword />
+          </ProtectedRoute>
+        } />
+      </Routes>
+    </Layout>
       <ToastContainer
         position="top-right"
         autoClose={3000}

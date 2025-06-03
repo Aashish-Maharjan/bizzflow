@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const PayrollSchema = new mongoose.Schema({
   employee: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'user',
+    ref: 'User',
     required: true
   },
   basicSalary: {
@@ -41,7 +41,7 @@ const PayrollSchema = new mongoose.Schema({
   },
   generatedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'user',
+    ref: 'User',
     required: true
   },
   paidDate: {
@@ -60,4 +60,7 @@ PayrollSchema.pre('save', function(next) {
   next();
 });
 
-module.exports = mongoose.model('payroll', PayrollSchema); 
+// Add index for better query performance
+PayrollSchema.index({ employee: 1, month: 1, year: 1 });
+
+module.exports = mongoose.model('Payroll', PayrollSchema); 

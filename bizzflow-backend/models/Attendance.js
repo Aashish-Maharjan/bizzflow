@@ -1,15 +1,14 @@
 const mongoose = require('mongoose');
 
 const attendanceSchema = new mongoose.Schema({
-  user: {
+  employeeId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Employee',
     required: true
   },
   date: {
     type: Date,
-    required: true,
-    default: Date.now
+    required: true
   },
   checkIn: {
     time: Date,
@@ -27,37 +26,58 @@ const attendanceSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['present', 'absent', 'half-day', 'leave'],
-    default: 'present'
+    enum: ['present', 'absent', 'half-day', 'late', 'leave'],
+    default: 'absent'
   },
   workHours: {
+    type: Number,
+    default: 0
+  },
+  overtime: {
     type: Number,
     default: 0
   },
   notes: {
     type: String,
     trim: true
+  },
+  leaveType: {
+    type: String,
+    enum: ['sick', 'vacation', 'personal', 'unpaid', null],
+    default: null
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
 }, {
   timestamps: true
 });
 
-// Index for querying attendance by date range
-attendanceSchema.index({ user: 1, date: 1 });
+// Compound index to ensure one attendance record per employee per day
+attendanceSchema.index({ employeeId: 1, date: 1 }, { unique: true });
 
 // Method to calculate work hours
 attendanceSchema.methods.calculateWorkHours = function() {
   if (this.checkIn?.time && this.checkOut?.time) {
-    const hours = (this.checkOut.time - this.checkIn.time) / (1000 * 60 * 60);
-    this.workHours = Math.round(hours * 100) / 100;
+    const duration = this.checkOut.time - this.checkIn.time;
+    this.workHours = Math.round((duration / (1000 * 60 * 60)) * 100) / 100; // Round to 2 decimal places
+    
+    // Calculate overtime (assuming 8-hour workday)
+    if (this.workHours > 8) {
+      this.overtime = Math.round((this.workHours - 8) * 100) / 100;
+    }
   }
 };
 
-// Middleware to calculate work hours before saving
+// Pre-save middleware to calculate work hours
 attendanceSchema.pre('save', function(next) {
-  if (this.checkIn?.time && this.checkOut?.time) {
-    this.calculateWorkHours();
-  }
+  this.calculateWorkHours();
   next();
 });
 

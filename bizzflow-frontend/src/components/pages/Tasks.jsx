@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const initialColumns = {
   todo: {
@@ -31,6 +33,7 @@ const initialColumns = {
     borderColor: 'border-rose-200/50 dark:border-rose-800/30',
     textColor: 'text-rose-600 dark:text-rose-400',
     hoverColor: 'hover:bg-rose-100/50 dark:hover:bg-rose-900/30',
+    icon: AlertCircle,
   },
   inProgress: {
     id: 'inProgress',
@@ -39,6 +42,7 @@ const initialColumns = {
     borderColor: 'border-amber-200/50 dark:border-amber-800/30',
     textColor: 'text-amber-600 dark:text-amber-400',
     hoverColor: 'hover:bg-amber-100/50 dark:hover:bg-amber-900/30',
+    icon: Clock,
   },
   completed: {
     id: 'completed',
@@ -47,6 +51,7 @@ const initialColumns = {
     borderColor: 'border-emerald-200/50 dark:border-emerald-800/30',
     textColor: 'text-emerald-600 dark:text-emerald-400',
     hoverColor: 'hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30',
+    icon: CheckCircle2,
   },
 };
 
@@ -75,14 +80,37 @@ export default function Tasks() {
   const [activeColumn, setActiveColumn] = useState(null);
   const [activeTaskMenu, setActiveTaskMenu] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [employees, setEmployees] = useState([]);
+
+  // Fetch employees when component mounts
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const response = await axios.get('/api/payroll/employees');
+        setEmployees(response.data);
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+        toast.error('Failed to fetch employees');
+      }
+    };
+
+    fetchEmployees();
+  }, []);
 
   const handleCreateTask = () => {
-    if (!activeColumn || !newTask.title) return;
+    if (!activeColumn || !newTask.title || !newTask.assignee) return;
     
     setIsLoading(true);
+    const assignedEmployee = employees.find(emp => emp._id === newTask.assignee);
+    
     const task = {
       id: Date.now().toString(),
       ...newTask,
+      assigneeDetails: assignedEmployee ? {
+        name: assignedEmployee.name,
+        email: assignedEmployee.email,
+        department: assignedEmployee.department
+      } : null,
       createdAt: new Date().toISOString(),
       status: activeColumn,
     };
@@ -174,7 +202,7 @@ export default function Tasks() {
 
       {/* Task Board */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-180px)]">
           {Object.values(initialColumns).map((column) => (
             <Droppable key={column.id} droppableId={column.id}>
               {(provided, snapshot) => (
@@ -182,8 +210,8 @@ export default function Tasks() {
                   {...provided.droppableProps}
                   ref={provided.innerRef}
                   className={`
-                    rounded-xl border bg-white dark:bg-gray-800/50
-                    ${column.borderColor} 
+                    flex flex-col rounded-xl border bg-white/50 dark:bg-gray-800/50
+                    ${column.borderColor}
                     ${snapshot.isDraggingOver ? column.color : ''}
                     transition-all duration-200 backdrop-blur-sm
                   `}
@@ -193,12 +221,12 @@ export default function Tasks() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${column.textColor}`} />
-                        <h3 className="font-semibold text-gray-900 dark:text-white">
+                        <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                           {column.title}
+                          <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                            {tasks[column.id].length}
+                          </span>
                         </h3>
-                        <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                          {tasks[column.id].length}
-                        </span>
                       </div>
 
                       <Dialog>
@@ -212,84 +240,127 @@ export default function Tasks() {
                             <Plus className="w-4 h-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
-                          <DialogHeader>
-                            <DialogTitle>Create New Task</DialogTitle>
+                        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+                          <DialogHeader className="border-b dark:border-gray-700 pb-4">
+                            <DialogTitle className="text-xl font-semibold">Create New Task</DialogTitle>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Add a new task to the {column.title} column
+                            </p>
                           </DialogHeader>
-                          <div className="space-y-4 mt-4">
-                            <div>
-                              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                                Task Title
+
+                          <div className="mt-6 space-y-6">
+                            {/* Task Title */}
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Task Title <span className="text-red-500">*</span>
                               </label>
                               <Input
                                 placeholder="Enter task title"
                                 value={newTask.title}
                                 onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                                className="focus:ring-2 focus:ring-indigo-500/20"
+                                className="w-full"
                               />
                             </div>
-                            
-                            <div>
-                              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+
+                            {/* Description */}
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Description
                               </label>
                               <textarea
                                 placeholder="Enter task description"
-                                className="w-full min-h-[100px] rounded-md border border-gray-300 dark:border-gray-600 bg-transparent px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                                className="w-full min-h-[100px] max-h-[200px] rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
                                 value={newTask.description}
                                 onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
                               />
                             </div>
 
-                            <div>
-                              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                                Assignee
-                              </label>
-                              <Input
-                                placeholder="Enter assignee name"
-                                value={newTask.assignee}
-                                onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
-                                className="focus:ring-2 focus:ring-indigo-500/20"
-                              />
+                            {/* Two Column Layout */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              {/* Assignee */}
+                              <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                  Assignee <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                  value={newTask.assignee}
+                                  onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
+                                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                >
+                                  <option value="">Select an employee</option>
+                                  {employees.map((employee) => (
+                                    <option key={employee._id} value={employee._id}>
+                                      {employee.name} - {employee.department}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* Due Date */}
+                              <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                  Due Date
+                                </label>
+                                <Input
+                                  type="date"
+                                  value={newTask.dueDate}
+                                  onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                                  min={new Date().toISOString().split('T')[0]}
+                                  className="w-full"
+                                />
+                              </div>
                             </div>
 
-                            <div>
-                              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                                Due Date
-                              </label>
-                              <Input
-                                type="date"
-                                value={newTask.dueDate}
-                                onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
-                                className="focus:ring-2 focus:ring-indigo-500/20"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                            {/* Priority */}
+                            <div className="space-y-3">
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Priority
                               </label>
-                              <select
-                                className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-transparent px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                                value={newTask.priority}
-                                onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                              >
-                                {priorities.map(priority => (
-                                  <option key={priority.id} value={priority.id}>
-                                    {priority.label}
-                                  </option>
+                              <div className="flex flex-wrap gap-2">
+                                {priorities.map((priority) => (
+                                  <button
+                                    key={priority.id}
+                                    type="button"
+                                    onClick={() => setNewTask({ ...newTask, priority: priority.id })}
+                                    className={`
+                                      px-3 py-2 rounded-lg flex items-center gap-2 transition-all duration-200
+                                      ${priority.color}
+                                      ${newTask.priority === priority.id 
+                                        ? 'ring-2 ring-offset-2 ring-indigo-500 scale-105' 
+                                        : 'hover:scale-105'
+                                      }
+                                    `}
+                                  >
+                                    <priority.icon className="w-4 h-4" />
+                                    <span>{priority.label}</span>
+                                  </button>
                                 ))}
-                              </select>
+                              </div>
                             </div>
+                          </div>
 
-                            <Button 
-                              onClick={handleCreateTask} 
-                              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
-                              disabled={isLoading}
+                          {/* Footer */}
+                          <div className="mt-6 pt-4 border-t dark:border-gray-700 flex justify-end gap-3">
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setNewTask({
+                                  title: '',
+                                  description: '',
+                                  assignee: '',
+                                  dueDate: '',
+                                  priority: 'medium',
+                                  attachments: [],
+                                });
+                              }}
                             >
-                              {isLoading ? (
-                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                              ) : null}
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={handleCreateTask}
+                              disabled={!newTask.title || !newTask.assignee}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                            >
                               Create Task
                             </Button>
                           </div>
@@ -298,8 +369,8 @@ export default function Tasks() {
                     </div>
                   </div>
 
-                  {/* Tasks */}
-                  <div className="p-4 space-y-3 min-h-[200px]">
+                  {/* Tasks Container */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {tasks[column.id].map((task, index) => (
                       <Draggable key={task.id} draggableId={task.id} index={index}>
                         {(provided, snapshot) => (
@@ -308,74 +379,72 @@ export default function Tasks() {
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
                             className={`
-                              relative group rounded-lg p-4 border
-                              ${snapshot.isDragging ? 'shadow-lg ring-2 ring-indigo-500/20' : 'shadow-sm hover:shadow-md'}
-                              ${column.borderColor} ${column.color}
+                              group relative rounded-lg p-4 bg-white dark:bg-gray-800
+                              border border-gray-200 dark:border-gray-700
+                              ${snapshot.isDragging ? 'shadow-lg ring-2 ring-indigo-500' : 'shadow-sm hover:shadow-md'}
                               transition-all duration-200 ease-in-out
-                              hover:scale-[1.02] cursor-grab active:cursor-grabbing
+                              hover:translate-y-[-2px]
                             `}
                           >
                             {/* Task Menu */}
-                            <div className="absolute right-2 top-2">
-                              <div className="relative">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                                  onClick={() => setActiveTaskMenu(task.id)}
-                                >
-                                  <MoreVertical className="w-4 h-4" />
-                                </Button>
-                                {activeTaskMenu === task.id && (
-                                  <div className="absolute right-0 mt-1 w-36 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10">
-                                    <div className="py-1">
-                                      <button
-                                        className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150"
-                                        onClick={() => {/* Implement edit */}}
-                                      >
-                                        <Edit className="w-4 h-4" />
-                                        Edit
-                                      </button>
-                                      <button
-                                        className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-150"
-                                        onClick={() => handleDeleteTask(column.id, task.id)}
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                        Delete
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                            <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                onClick={() => setActiveTaskMenu(task.id)}
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                              {activeTaskMenu === task.id && (
+                                <div className="absolute right-0 mt-1 w-36 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10 overflow-hidden">
+                                  <button
+                                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    onClick={() => {/* Implement edit */}}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                    Edit
+                                  </button>
+                                  <button
+                                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                    onClick={() => handleDeleteTask(column.id, task.id)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
                             </div>
 
                             {/* Task Content */}
-                            <h4 className="font-medium text-gray-900 dark:text-white mb-2 pr-8">
-                              {task.title}
-                            </h4>
-                            {task.description && (
-                              <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-                                {task.description}
-                              </p>
-                            )}
+                            <div className="pr-8">
+                              <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                                {task.title}
+                              </h4>
+                              {task.description && (
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+                                  {task.description}
+                                </p>
+                              )}
+                            </div>
 
                             {/* Task Metadata */}
-                            <div className="flex flex-wrap gap-2 mt-3">
-                              {task.assignee && (
-                                <div className="flex items-center gap-1 text-xs bg-gray-100/50 dark:bg-gray-700/50 px-2 py-1 rounded-full border border-gray-200/50 dark:border-gray-600/50">
+                            <div className="flex flex-wrap items-center gap-2 mt-3">
+                              {task.assigneeDetails && (
+                                <div className="flex items-center gap-1.5 text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full text-gray-700 dark:text-gray-300">
                                   <User2 className="w-3 h-3" />
-                                  <span>{task.assignee}</span>
+                                  <span>{task.assigneeDetails.name}</span>
                                 </div>
                               )}
                               
                               {task.dueDate && (
-                                <div className="flex items-center gap-1 text-xs bg-gray-100/50 dark:bg-gray-700/50 px-2 py-1 rounded-full border border-gray-200/50 dark:border-gray-600/50">
+                                <div className="flex items-center gap-1.5 text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full text-gray-700 dark:text-gray-300">
                                   <Calendar className="w-3 h-3" />
                                   <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                                 </div>
                               )}
 
-                              <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
+                              <div className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full ${
                                 priorities.find(p => p.id === task.priority)?.color
                               }`}>
                                 {(() => {

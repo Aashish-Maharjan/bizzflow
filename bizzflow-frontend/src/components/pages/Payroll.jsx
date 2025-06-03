@@ -32,6 +32,7 @@ import Label from "../ui/Label";
 import Card from "../ui/Card";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { FiPlus, FiX } from 'react-icons/fi';
 
 const initialEmployeeForm = {
   name: "",
@@ -90,6 +91,11 @@ const initialEmployeeForm = {
     relationship: "",
     phone: "",
     address: ""
+  },
+  salary: {
+    basic: "",
+    allowances: "0",
+    deductions: "0"
   }
 };
 
@@ -151,24 +157,37 @@ const validateForm = (formData, currentTab) => {
 const Payroll = () => {
   const [employees, setEmployees] = useState([]);
   const [payrolls, setPayrolls] = useState([]);
+  const [payrollExists, setPayrollExists] = useState({});
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [newEmployee, setNewEmployee] = useState(initialEmployeeForm);
   const [loading, setLoading] = useState(false);
-  const [currentMonth] = useState(new Date().toLocaleString('default', { month: 'long' }));
-  const [currentYear] = useState(new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(new Date().toLocaleString('default', { month: 'long' }));
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentTab, setCurrentTab] = useState(0);
   const [formErrors, setFormErrors] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Fetch employees and payrolls
   useEffect(() => {
-    fetchEmployees();
-    fetchPayrolls();
+    const initializeData = async () => {
+      try {
+        await fetchEmployees();
+        await fetchPayrolls();
+      } catch (error) {
+        console.error('Error initializing data:', error);
+        toast.error('Failed to load initial data');
+      }
+    };
+
+    initializeData();
   }, []);
 
   const fetchEmployees = async () => {
     try {
+      setLoading(true);
       const response = await axios.get('/api/payroll/employees');
       setEmployees(response.data);
       if (!selectedEmployee && response.data.length > 0) {
@@ -177,50 +196,95 @@ const Payroll = () => {
     } catch (error) {
       toast.error('Failed to fetch employees');
       console.error('Error fetching employees:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchPayrolls = async () => {
     try {
-      const response = await axios.get('/api/payroll', {
-        params: {
-          month: currentMonth,
-          year: currentYear
-        }
-      });
-      setPayrolls(response.data);
+      setIsLoading(true);
+      console.log('Fetching payrolls...');
+
+      // Make the initial request without parameters
+      const response = await axios.get('/api/payroll');
+
+      console.log('Received payrolls:', response.data);
+      
+      if (Array.isArray(response.data)) {
+        setPayrolls(response.data);
+        
+        // Update payrollExists state
+        const existingPayrolls = {};
+        response.data.forEach(payroll => {
+          if (payroll.employee && payroll.employee._id) {
+            existingPayrolls[payroll.employee._id] = true;
+          }
+        });
+        setPayrollExists(existingPayrolls);
+      } else {
+        console.error('Invalid payroll data received:', response.data);
+        setPayrolls([]);
+        setPayrollExists({});
+      }
     } catch (error) {
-      toast.error('Failed to fetch payrolls');
-      console.error('Error fetching payrolls:', error);
+      console.error('Error fetching payrolls:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      toast.error(error.response?.data?.message || 'Failed to fetch payrolls');
+      setPayrolls([]);
+      setPayrollExists({});
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  // Add a separate effect for filtering payrolls
+  useEffect(() => {
+    if (!isLoading && currentMonth && currentYear) {
+      const filterPayrolls = async () => {
+        try {
+          const response = await axios.get('/api/payroll', {
+            params: {
+              month: currentMonth,
+              year: Number(currentYear)
+            }
+          });
+
+          if (Array.isArray(response.data)) {
+            setPayrolls(response.data);
+            
+            const existingPayrolls = {};
+            response.data.forEach(payroll => {
+              if (payroll.employee && payroll.employee._id) {
+                existingPayrolls[payroll.employee._id] = true;
+              }
+            });
+            setPayrollExists(existingPayrolls);
+          }
+        } catch (error) {
+          console.error('Error filtering payrolls:', error);
+          // Don't show error toast here as it's not a critical error
+        }
+      };
+
+      filterPayrolls();
+    }
+  }, [currentMonth, currentYear, isLoading]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     if (name.includes('.')) {
-      const parts = name.split('.');
-      if (parts.length === 2) {
-        // Handle two-level nesting (e.g., personalDetails.dateOfBirth)
-        setNewEmployee(prev => ({
-          ...prev,
-          [parts[0]]: {
-            ...prev[parts[0]],
-            [parts[1]]: value
-          }
-        }));
-      } else if (parts.length === 3) {
-        // Handle three-level nesting (e.g., personalDetails.address.street)
-        setNewEmployee(prev => ({
-          ...prev,
-          [parts[0]]: {
-            ...prev[parts[0]],
-            [parts[1]]: {
-              ...prev[parts[0]]?.[parts[1]],
-              [parts[2]]: value
-            }
-          }
-        }));
-      }
+      const [parent, child] = name.split('.');
+      setNewEmployee(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
     } else {
       setNewEmployee(prev => ({
         ...prev,
@@ -256,7 +320,7 @@ const Payroll = () => {
         },
         personalDetails: {
           ...newEmployee.personalDetails,
-          dateOfBirth: newEmployee.personalDetails.dateOfBirth ? 
+          dateOfBirth: new Employee.personalDetails.dateOfBirth ? 
             new Date(newEmployee.personalDetails.dateOfBirth).toISOString() : undefined
         }
       };
@@ -296,36 +360,47 @@ const Payroll = () => {
         return;
       }
 
-      // Calculate allowances (example: 10% of basic salary)
+      // Calculate allowances (10% of basic salary)
       const allowances = employee.basicSalary * 0.1;
       
-      // Calculate deductions (example: 5% of basic salary)
+      // Calculate deductions (5% of basic salary)
       const deductions = employee.basicSalary * 0.05;
       
-      // Calculate bonus (example: 8.33% of basic salary - one month salary divided by 12)
+      // Calculate bonus (8.33% of basic salary - one month salary divided by 12)
       const bonus = employee.basicSalary * 0.0833;
 
       const payrollData = {
         employee: employeeId,
-        basicSalary: employee.basicSalary,
+        basicSalary: Number(employee.basicSalary),
         month: currentMonth,
-        year: currentYear,
-        allowances,
-        deductions,
-        bonus
+        year: Number(currentYear),
+        allowances: Math.round(allowances),
+        deductions: Math.round(deductions),
+        bonus: Math.round(bonus)
       };
 
-      console.log('Sending payroll data:', payrollData); // Debug log
-
       const response = await axios.post('/api/payroll', payrollData);
-      console.log('Payroll response:', response.data); // Debug log
       
-      toast.success('Payroll generated successfully');
-      fetchPayrolls();
+      if (response.data) {
+        toast.success('Payroll generated successfully');
+        if (response.data.attendance) {
+          toast.info('Initial attendance record created');
+        }
+        if (response.data.task) {
+          toast.info('Onboarding task created');
+        }
+        fetchPayrolls(); // Refresh the payroll list
+      }
     } catch (error) {
-      console.error('Error generating payroll:', error);
-      console.error('Error response:', error.response?.data); // Debug log
-      toast.error(error.response?.data?.message || 'Failed to generate payroll');
+      console.error('Error generating payroll:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.errors?.[0]?.msg || 
+                          'Failed to generate payroll';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -351,6 +426,59 @@ const Payroll = () => {
     emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Add this function to check existing payroll
+  const checkExistingPayroll = async (employeeId) => {
+    try {
+      const response = await axios.get('/api/payroll', {
+        params: {
+          month: currentMonth,
+          year: currentYear,
+          employee: employeeId
+        }
+      });
+      return response.data.some(p => p.employee._id === employeeId);
+    } catch (error) {
+      console.error('Error checking existing payroll:', error);
+      return false;
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      await axios.post('/api/payroll/employees', newEmployee);
+      toast.success('Employee added successfully');
+      setShowAddModal(false);
+      setNewEmployee({
+        name: '',
+        employeeId: '',
+        email: '',
+        phone: '',
+        department: '',
+        designation: '',
+        joiningDate: '',
+        salary: {
+          basic: '',
+          allowances: '0',
+          deductions: '0'
+        },
+        bankDetails: {
+          accountName: '',
+          accountNumber: '',
+          bankName: '',
+          branchName: '',
+          ifscCode: ''
+        }
+      });
+      fetchEmployees();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to add employee');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -359,12 +487,12 @@ const Payroll = () => {
           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Manage employee payroll and records</p>
         </div>
         <Button 
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={() => setShowAddModal(true)}
           className="flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 w-full sm:w-auto justify-center"
           size="lg"
         >
-          {showAddForm ? <MinusCircle className="w-5 h-5" /> : <PlusCircle className="w-5 h-5" />}
-          {showAddForm ? 'Cancel' : 'Add Employee'}
+          <FiPlus className="w-5 h-5" />
+          Add Employee
         </Button>
       </div>
 
@@ -430,7 +558,12 @@ const Payroll = () => {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleGeneratePayroll(employee._id)}
-                      className="h-8 w-8 text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"
+                      className={`h-8 w-8 ${
+                        payrollExists[employee._id]
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-gray-600 dark:text-gray-300'
+                      } hover:text-primary dark:hover:text-primary`}
+                      title={payrollExists[employee._id] ? 'View Existing Payroll' : 'Generate Payroll'}
                     >
                       <Receipt className="w-4 h-4" />
                     </Button>
@@ -495,534 +628,194 @@ const Payroll = () => {
         </div>
       </div>
 
-      {/* Add Employee Form */}
-      {showAddForm && (
-        <Card className="p-4 sm:p-6 bg-white dark:bg-gray-800/40 shadow-xl border dark:border-gray-700 rounded-xl mb-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6 pb-4 border-b dark:border-gray-700">
-            <div className="p-3 rounded-lg bg-primary/10 dark:bg-primary/20">
-              <UserCircle className="w-6 h-6 text-primary dark:text-primary" />
+      {/* Add Employee Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Add New Employee</h3>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <FiX className="h-6 w-6" />
+                </button>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">Add New Employee</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Complete all required information</p>
-            </div>
+            <form onSubmit={handleSubmit} className="p-6">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                {/* Basic Information */}
+                <div className="col-span-2">
+                  <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Basic Information</h4>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={newEmployee.name}
+                    onChange={handleInputChange}
+                    required
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={newEmployee.email}
+                    onChange={handleInputChange}
+                    required
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone</label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={newEmployee.phone}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Department</label>
+                  <input
+                    type="text"
+                    name="department"
+                    value={newEmployee.department}
+                    onChange={handleInputChange}
+                    required
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Designation</label>
+                  <input
+                    type="text"
+                    name="employmentDetails.designation"
+                    value={newEmployee.employmentDetails.designation}
+                    onChange={handleInputChange}
+                    required
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Joining Date</label>
+                  <input
+                    type="date"
+                    name="employmentDetails.joinDate"
+                    value={newEmployee.employmentDetails.joinDate}
+                    onChange={handleInputChange}
+                    required
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+
+                {/* Salary Information */}
+                <div className="col-span-2">
+                  <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4 mt-4">Salary Information</h4>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Basic Salary</label>
+                  <input
+                    type="number"
+                    name="salary.basic"
+                    value={newEmployee.salary.basic}
+                    onChange={handleInputChange}
+                    required
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Allowances</label>
+                  <input
+                    type="number"
+                    name="salary.allowances"
+                    value={newEmployee.salary.allowances}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Deductions</label>
+                  <input
+                    type="number"
+                    name="salary.deductions"
+                    value={newEmployee.salary.deductions}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+
+                {/* Bank Details */}
+                <div className="col-span-2">
+                  <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4 mt-4">Bank Details</h4>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Account Name</label>
+                  <input
+                    type="text"
+                    name="bankDetails.accountName"
+                    value={newEmployee.bankDetails.accountName}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Account Number</label>
+                  <input
+                    type="text"
+                    name="bankDetails.accountNumber"
+                    value={newEmployee.bankDetails.accountNumber}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bank Name</label>
+                  <input
+                    type="text"
+                    name="bankDetails.bankName"
+                    value={newEmployee.bankDetails.bankName}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">IFSC Code</label>
+                  <input
+                    type="text"
+                    name="bankDetails.ifscCode"
+                    value={newEmployee.bankDetails.ifscCode}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  {loading ? 'Adding...' : 'Add Employee'}
+                </button>
+              </div>
+            </form>
           </div>
-
-          {/* Form Tabs */}
-          <div className="flex flex-wrap gap-2 mb-6">
-            <FormTab 
-              active={currentTab === 0} 
-              onClick={() => setCurrentTab(0)}
-              icon={UserCircle}
-            >
-              Personal Info
-            </FormTab>
-            <FormTab 
-              active={currentTab === 1} 
-              onClick={() => setCurrentTab(1)}
-              icon={Briefcase}
-            >
-              Employment
-            </FormTab>
-            <FormTab 
-              active={currentTab === 2} 
-              onClick={() => setCurrentTab(2)}
-              icon={CreditCard}
-            >
-              Bank Details
-            </FormTab>
-            <FormTab 
-              active={currentTab === 3} 
-              onClick={() => setCurrentTab(3)}
-              icon={GraduationCap}
-            >
-              Education
-            </FormTab>
-            <FormTab 
-              active={currentTab === 4} 
-              onClick={() => setCurrentTab(4)}
-              icon={FileText}
-            >
-              Documents
-            </FormTab>
-          </div>
-
-          {/* Error Display */}
-          {formErrors.length > 0 && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <div className="flex items-center gap-2 text-red-600 dark:text-red-400 mb-2">
-                <AlertCircle className="w-5 h-5" />
-                <span className="font-medium">Please correct the following errors:</span>
-              </div>
-              <ul className="list-disc list-inside text-sm text-red-600 dark:text-red-400">
-                {formErrors.map((error, index) => (
-                  <li key={index}>{error}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <form onSubmit={handleAddEmployee} className="space-y-8">
-            {/* Personal Information Tab */}
-            {currentTab === 0 && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label required>Full Name</Label>
-                    <Input
-                      required
-                      name="name"
-                      value={newEmployee.name}
-                      onChange={handleInputChange}
-                      placeholder="John Doe"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label required>Email</Label>
-                    <Input
-                      required
-                      type="email"
-                      name="email"
-                      value={newEmployee.email}
-                      onChange={handleInputChange}
-                      placeholder="john@example.com"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label required>Phone</Label>
-                    <Input
-                      required
-                      name="phone"
-                      value={newEmployee.phone}
-                      onChange={handleInputChange}
-                      placeholder="9876543210"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label required>Date of Birth</Label>
-                    <Input
-                      required
-                      type="date"
-                      name="personalDetails.dateOfBirth"
-                      value={newEmployee.personalDetails.dateOfBirth}
-                      onChange={handleInputChange}
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Gender</Label>
-                    <select
-                      name="personalDetails.gender"
-                      value={newEmployee.personalDetails.gender}
-                      onChange={handleInputChange}
-                      className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2"
-                    >
-                      <option value="">Select Gender</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Marital Status</Label>
-                    <select
-                      name="personalDetails.maritalStatus"
-                      value={newEmployee.personalDetails.maritalStatus}
-                      onChange={handleInputChange}
-                      className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2"
-                    >
-                      <option value="">Select Status</option>
-                      <option value="single">Single</option>
-                      <option value="married">Married</option>
-                      <option value="divorced">Divorced</option>
-                      <option value="widowed">Widowed</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <Label>Address Details</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2">
-                      <Input
-                        name="personalDetails.address.street"
-                        value={newEmployee.personalDetails.address.street || ''}
-                        onChange={handleInputChange}
-                        placeholder="Street Address (e.g., House No., Street Name, Area)"
-                        className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                      />
-                    </div>
-                    <Input
-                      name="personalDetails.address.city"
-                      value={newEmployee.personalDetails.address.city || ''}
-                      onChange={handleInputChange}
-                      placeholder="City (e.g., Kathmandu)"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                    <Input
-                      name="personalDetails.address.state"
-                      value={newEmployee.personalDetails.address.state || ''}
-                      onChange={handleInputChange}
-                      placeholder="Province/State (e.g., Bagmati)"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                    <Input
-                      name="personalDetails.address.country"
-                      value={newEmployee.personalDetails.address.country || ''}
-                      onChange={handleInputChange}
-                      placeholder="Country (e.g., Nepal)"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                    <Input
-                      name="personalDetails.address.postalCode"
-                      value={newEmployee.personalDetails.address.postalCode || ''}
-                      onChange={handleInputChange}
-                      placeholder="Postal Code (e.g., 44600)"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Employment Details Tab */}
-            {currentTab === 1 && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label required>Department</Label>
-                    <Input
-                      required
-                      name="department"
-                      value={newEmployee.department}
-                      onChange={handleInputChange}
-                      placeholder="Engineering"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label required>Designation</Label>
-                    <Input
-                      required
-                      name="employmentDetails.designation"
-                      value={newEmployee.employmentDetails.designation}
-                      onChange={handleInputChange}
-                      placeholder="Software Engineer"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label required>Basic Salary</Label>
-                    <Input
-                      required
-                      type="number"
-                      name="basicSalary"
-                      value={newEmployee.basicSalary}
-                      onChange={handleInputChange}
-                      placeholder="50000"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Employment Type</Label>
-                    <select
-                      name="employmentDetails.employmentType"
-                      value={newEmployee.employmentDetails.employmentType}
-                      onChange={handleInputChange}
-                      className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2"
-                    >
-                      <option value="full-time">Full Time</option>
-                      <option value="part-time">Part Time</option>
-                      <option value="contract">Contract</option>
-                      <option value="intern">Intern</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label required>Join Date</Label>
-                    <Input
-                      required
-                      type="date"
-                      name="employmentDetails.joinDate"
-                      value={newEmployee.employmentDetails.joinDate}
-                      onChange={handleInputChange}
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Work Location</Label>
-                    <select
-                      name="employmentDetails.workLocation"
-                      value={newEmployee.employmentDetails.workLocation}
-                      onChange={handleInputChange}
-                      className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2"
-                    >
-                      <option value="office">Office</option>
-                      <option value="remote">Remote</option>
-                      <option value="hybrid">Hybrid</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Reporting To</Label>
-                    <Input
-                      name="employmentDetails.reportingTo"
-                      value={newEmployee.employmentDetails.reportingTo}
-                      onChange={handleInputChange}
-                      placeholder="Manager's Name"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Shift Type</Label>
-                    <select
-                      name="employmentDetails.shiftType"
-                      value={newEmployee.employmentDetails.shiftType}
-                      onChange={handleInputChange}
-                      className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2"
-                    >
-                      <option value="day">Day Shift</option>
-                      <option value="night">Night Shift</option>
-                      <option value="flexible">Flexible Hours</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Bank Details Tab */}
-            {currentTab === 2 && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label required>Account Holder's Name</Label>
-                    <Input
-                      required
-                      name="bankDetails.accountName"
-                      value={newEmployee.bankDetails.accountName}
-                      onChange={handleInputChange}
-                      placeholder="Full name as per bank account"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label required>Account Number</Label>
-                    <Input
-                      required
-                      name="bankDetails.accountNumber"
-                      value={newEmployee.bankDetails.accountNumber}
-                      onChange={handleInputChange}
-                      placeholder="Bank account number"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label required>Bank Name</Label>
-                    <Input
-                      required
-                      name="bankDetails.bankName"
-                      value={newEmployee.bankDetails.bankName}
-                      onChange={handleInputChange}
-                      placeholder="Name of the bank"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label required>Branch Name</Label>
-                    <Input
-                      required
-                      name="bankDetails.branch"
-                      value={newEmployee.bankDetails.branch}
-                      onChange={handleInputChange}
-                      placeholder="Bank branch location"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Account Type</Label>
-                    <select
-                      name="bankDetails.accountType"
-                      value={newEmployee.bankDetails.accountType}
-                      onChange={handleInputChange}
-                      className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2"
-                    >
-                      <option value="savings">Savings</option>
-                      <option value="current">Current</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Education Details Tab */}
-            {currentTab === 3 && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label>Highest Qualification</Label>
-                    <Input
-                      name="educationDetails.highestQualification"
-                      value={newEmployee.educationDetails.highestQualification}
-                      onChange={handleInputChange}
-                      placeholder="Bachelor's Degree"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Field of Study</Label>
-                    <Input
-                      name="educationDetails.fieldOfStudy"
-                      value={newEmployee.educationDetails.fieldOfStudy}
-                      onChange={handleInputChange}
-                      placeholder="Computer Science"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Institution</Label>
-                    <Input
-                      name="educationDetails.institution"
-                      value={newEmployee.educationDetails.institution}
-                      onChange={handleInputChange}
-                      placeholder="University Name"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Year of Completion</Label>
-                    <Input
-                      type="number"
-                      name="educationDetails.yearOfCompletion"
-                      value={newEmployee.educationDetails.yearOfCompletion}
-                      onChange={handleInputChange}
-                      placeholder="2023"
-                      min="1950"
-                      max={new Date().getFullYear()}
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Documents Tab */}
-            {currentTab === 4 && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label>ID Proof</Label>
-                    <Input
-                      type="file"
-                      name="documents.idProof"
-                      onChange={(e) => {
-                        // Handle file upload
-                        handleInputChange({
-                          target: {
-                            name: "documents.idProof",
-                            value: e.target.files[0]?.name || ""
-                          }
-                        });
-                      }}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Address Proof</Label>
-                    <Input
-                      type="file"
-                      name="documents.addressProof"
-                      onChange={(e) => {
-                        handleInputChange({
-                          target: {
-                            name: "documents.addressProof",
-                            value: e.target.files[0]?.name || ""
-                          }
-                        });
-                      }}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Resume</Label>
-                    <Input
-                      type="file"
-                      name="documents.resume"
-                      onChange={(e) => {
-                        handleInputChange({
-                          target: {
-                            name: "documents.resume",
-                            value: e.target.files[0]?.name || ""
-                          }
-                        });
-                      }}
-                      accept=".pdf,.doc,.docx"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Photo</Label>
-                    <Input
-                      type="file"
-                      name="documents.photo"
-                      onChange={(e) => {
-                        handleInputChange({
-                          target: {
-                            name: "documents.photo",
-                            value: e.target.files[0]?.name || ""
-                          }
-                        });
-                      }}
-                      accept="image/*"
-                      className="text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Form Navigation Buttons */}
-            <div className="flex justify-between items-center gap-4 pt-4 border-t dark:border-gray-700">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowAddForm(false)}
-              >
-                Cancel
-              </Button>
-              <div className="flex gap-2">
-                {currentTab > 0 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setCurrentTab(prev => prev - 1)}
-                  >
-                    Previous
-                  </Button>
-                )}
-                {currentTab < 4 ? (
-                  <Button
-                    type="button"
-                    onClick={handleNextTab}
-                  >
-                    Next
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="min-w-[120px]"
-                    onClick={handleAddEmployee}
-                  >
-                    {loading ? 'Adding...' : 'Add Employee'}
-                  </Button>
-                )}
-              </div>
-            </div>
-          </form>
-        </Card>
+        </div>
       )}
       <ToastContainer />
     </div>
