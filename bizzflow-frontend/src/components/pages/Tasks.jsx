@@ -67,22 +67,23 @@ export default function Tasks() {
     inProgress: [],
     completed: [],
   });
-  
+
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
-    assignee: '',
+    assignedTo: '',
     dueDate: '',
     priority: 'medium',
-    attachments: [],
+    department: '',
   });
-  
+
   const [activeColumn, setActiveColumn] = useState(null);
   const [activeTaskMenu, setActiveTaskMenu] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [employees, setEmployees] = useState([]);
+  const [showDialog, setShowDialog] = useState(false);
 
-  // Fetch employees when component mounts
+  // Fetch employees and tasks when component mounts
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
@@ -94,69 +95,140 @@ export default function Tasks() {
       }
     };
 
-    fetchEmployees();
-  }, []);
+    const fetchTasks = async () => {
+      try {
+        const response = await axios.get('/api/tasks');
+        const tasksData = response.data;
 
-  const handleCreateTask = () => {
-    if (!activeColumn || !newTask.title || !newTask.assignee) return;
-    
-    setIsLoading(true);
-    const assignedEmployee = employees.find(emp => emp._id === newTask.assignee);
-    
-    const task = {
-      id: Date.now().toString(),
-      ...newTask,
-      assigneeDetails: assignedEmployee ? {
-        name: assignedEmployee.name,
-        email: assignedEmployee.email,
-        department: assignedEmployee.department
-      } : null,
-      createdAt: new Date().toISOString(),
-      status: activeColumn,
+        // Group tasks by status
+        const groupedTasks = {
+          todo: tasksData.filter(task => task.status === 'pending'),
+          inProgress: tasksData.filter(task => task.status === 'in-progress'),
+          completed: tasksData.filter(task => task.status === 'completed'),
+        };
+
+        setTasks(groupedTasks);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        toast.error('Failed to fetch tasks');
+      }
     };
 
-    // Simulate API call
-    setTimeout(() => {
+    fetchEmployees();
+    fetchTasks();
+  }, []);
+
+  const handleCreateTask = async () => {
+    if (!newTask.title || !newTask.assignedTo) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Find the selected employee to get their department
+      const selectedEmployee = employees.find(emp => emp._id === newTask.assignedTo);
+
+      if (!selectedEmployee) {
+        toast.error('Selected employee not found');
+        setIsLoading(false);
+        return;
+      }
+
+      // Map frontend status to backend status
+      let backendStatus = 'pending';
+      if (activeColumn === 'inProgress') backendStatus = 'in-progress';
+      else if (activeColumn === 'completed') backendStatus = 'completed';
+
+      const taskData = {
+        title: newTask.title,
+        description: newTask.description || 'No description provided',
+        assignedTo: newTask.assignedTo,
+        dueDate: newTask.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        priority: newTask.priority,
+        category: 'General',
+        department: selectedEmployee.department,
+        status: backendStatus,
+      };
+
+      console.log('Sending task data:', taskData);
+
+      const response = await axios.post('/api/tasks', taskData);
+      const createdTask = response.data;
+
+      console.log('Created task:', createdTask);
+
+      // Map backend status to frontend column
+      let columnKey = activeColumn;
+      if (createdTask.status === 'pending') columnKey = 'todo';
+      else if (createdTask.status === 'in-progress') columnKey = 'inProgress';
+      else if (createdTask.status === 'completed') columnKey = 'completed';
+
       setTasks(prev => ({
         ...prev,
-        [activeColumn]: [...prev[activeColumn], task],
+        [columnKey]: [...prev[columnKey], createdTask],
       }));
+
       setNewTask({
         title: '',
         description: '',
-        assignee: '',
+        assignedTo: '',
         dueDate: '',
         priority: 'medium',
-        attachments: [],
+        department: '',
       });
+
+      setShowDialog(false);
+      toast.success('Task created successfully');
+    } catch (error) {
+      console.error('Error creating task:', error);
+      if (error.response?.data?.errors) {
+        const errorMessages = error.response.data.errors.map(err => err.msg).join(', ');
+        toast.error(`Validation errors: ${errorMessages}`);
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to create task');
+      }
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
-  const handleDeleteTask = (columnId, taskId) => {
+  const handleDeleteTask = async (columnId, taskId) => {
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await axios.delete(`/api/tasks/${taskId}`);
       setTasks(prev => ({
         ...prev,
-        [columnId]: prev[columnId].filter(task => task.id !== taskId),
+        [columnId]: prev[columnId].filter(task => task._id !== taskId),
       }));
       setActiveTaskMenu(null);
+      toast.success('Task deleted successfully');
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
+    } finally {
       setIsLoading(false);
-    }, 300);
+    }
   };
 
-  const onDragEnd = (result) => {
-    const { source, destination } = result;
+  const onDragEnd = async (result) => {
+    const { source, destination, draggableId } = result;
     if (!destination) return;
 
     setIsLoading(true);
-    const sourceCol = [...tasks[source.droppableId]];
-    const destCol = [...tasks[destination.droppableId]];
-    const [movedTask] = sourceCol.splice(source.index, 1);
+    try {
+      // Map frontend column to backend status
+      let newStatus = destination.droppableId;
+      if (destination.droppableId === 'todo') newStatus = 'pending';
+      else if (destination.droppableId === 'inProgress') newStatus = 'in-progress';
+      else if (destination.droppableId === 'completed') newStatus = 'completed';
 
-    // Simulate API call
-    setTimeout(() => {
+      await axios.put(`/api/tasks/${draggableId}`, { status: newStatus });
+
+      const sourceCol = [...tasks[source.droppableId]];
+      const destCol = [...tasks[destination.droppableId]];
+      const [movedTask] = sourceCol.splice(source.index, 1);
+
       if (source.droppableId === destination.droppableId) {
         sourceCol.splice(destination.index, 0, movedTask);
         setTasks(prev => ({
@@ -164,15 +236,21 @@ export default function Tasks() {
           [source.droppableId]: sourceCol,
         }));
       } else {
-        destCol.splice(destination.index, 0, { ...movedTask, status: destination.droppableId });
+        destCol.splice(destination.index, 0, { ...movedTask, status: newStatus });
         setTasks(prev => ({
           ...prev,
           [source.droppableId]: sourceCol,
           [destination.droppableId]: destCol,
         }));
       }
+
+      toast.success('Task status updated');
+    } catch (error) {
+      console.error('Error updating task:', error);
+      toast.error('Failed to update task status');
+    } finally {
       setIsLoading(false);
-    }, 300);
+    }
   };
 
   return (
@@ -235,7 +313,7 @@ export default function Tasks() {
                             variant="ghost"
                             size="sm"
                             className={`${column.hoverColor} transition-colors duration-200`}
-                            onClick={() => setActiveColumn(column.id)}
+                            onClick={() => {setActiveColumn(column.id); setShowDialog(true);}}
                           >
                             <Plus className="w-4 h-4" />
                           </Button>
@@ -283,8 +361,8 @@ export default function Tasks() {
                                   Assignee <span className="text-red-500">*</span>
                                 </label>
                                 <select
-                                  value={newTask.assignee}
-                                  onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
+                                  value={newTask.assignedTo}
+                                  onChange={(e) => setNewTask({ ...newTask, assignedTo: e.target.value })}
                                   className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                 >
                                   <option value="">Select an employee</option>
@@ -347,18 +425,19 @@ export default function Tasks() {
                                 setNewTask({
                                   title: '',
                                   description: '',
-                                  assignee: '',
+                                  assignedTo: '',
                                   dueDate: '',
                                   priority: 'medium',
-                                  attachments: [],
+                                  department: '',
                                 });
+                                setShowDialog(false);
                               }}
                             >
                               Cancel
                             </Button>
                             <Button
                               onClick={handleCreateTask}
-                              disabled={!newTask.title || !newTask.assignee}
+                              disabled={!newTask.title || !newTask.assignedTo}
                               className="bg-indigo-600 hover:bg-indigo-700 text-white"
                             >
                               Create Task
@@ -372,7 +451,7 @@ export default function Tasks() {
                   {/* Tasks Container */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {tasks[column.id].map((task, index) => (
-                      <Draggable key={task.id} draggableId={task.id} index={index}>
+                      <Draggable key={task._id} draggableId={task._id} index={index}>
                         {(provided, snapshot) => (
                           <div
                             ref={provided.innerRef}
@@ -392,11 +471,11 @@ export default function Tasks() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                onClick={() => setActiveTaskMenu(task.id)}
+                                onClick={() => setActiveTaskMenu(task._id)}
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </Button>
-                              {activeTaskMenu === task.id && (
+                              {activeTaskMenu === task._id && (
                                 <div className="absolute right-0 mt-1 w-36 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10 overflow-hidden">
                                   <button
                                     className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -407,7 +486,7 @@ export default function Tasks() {
                                   </button>
                                   <button
                                     className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                    onClick={() => handleDeleteTask(column.id, task.id)}
+                                    onClick={() => handleDeleteTask(column.id, task._id)}
                                   >
                                     <Trash2 className="w-4 h-4" />
                                     Delete
@@ -430,13 +509,13 @@ export default function Tasks() {
 
                             {/* Task Metadata */}
                             <div className="flex flex-wrap items-center gap-2 mt-3">
-                              {task.assigneeDetails && (
+                              {task.assignedTo && (
                                 <div className="flex items-center gap-1.5 text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full text-gray-700 dark:text-gray-300">
                                   <User2 className="w-3 h-3" />
-                                  <span>{task.assigneeDetails.name}</span>
+                                  <span>{task.assignedTo.name || 'Assigned User'}</span>
                                 </div>
                               )}
-                              
+
                               {task.dueDate && (
                                 <div className="flex items-center gap-1.5 text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full text-gray-700 dark:text-gray-300">
                                   <Calendar className="w-3 h-3" />
