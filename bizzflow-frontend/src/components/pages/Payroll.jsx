@@ -24,6 +24,7 @@ import {
   Globe,
   AlertCircle,
   Receipt,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 import StatCard from "../ui/Statcard";
@@ -33,6 +34,7 @@ import Card from "../ui/Card";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { FiPlus, FiX } from 'react-icons/fi';
+import AddEmployee from './AddEmployee';
 
 const initialEmployeeForm = {
   name: "",
@@ -127,8 +129,8 @@ const validateForm = (formData, currentTab) => {
       
     case 1: // Employment
       if (!formData.employmentDetails.designation) errors.push("Designation is required");
-      if (!formData.basicSalary) errors.push("Basic salary is required");
-      if (isNaN(Number(formData.basicSalary)) || Number(formData.basicSalary) <= 0) {
+      if (!formData.salary.basic) errors.push("Basic salary is required");
+      if (isNaN(Number(formData.salary.basic)) || Number(formData.salary.basic) <= 0) {
         errors.push("Basic salary must be a positive number");
       }
       if (!formData.department) errors.push("Department is required");
@@ -169,6 +171,8 @@ const Payroll = () => {
   const [formErrors, setFormErrors] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   // Fetch employees and payrolls
   useEffect(() => {
@@ -311,29 +315,64 @@ const Payroll = () => {
     setLoading(true);
 
     try {
+      // Generate a unique employee ID
+      const employeeId = `EMP${Date.now().toString().slice(-6)}`;
+
+      // Prepare the employee data according to the schema
       const employeeData = {
-        ...newEmployee,
-        basicSalary: Number(newEmployee.basicSalary),
-        employmentDetails: {
-          ...newEmployee.employmentDetails,
-          joinDate: new Date(newEmployee.employmentDetails.joinDate).toISOString()
+        name: newEmployee.name,
+        employeeId: employeeId,
+        email: newEmployee.email,
+        phone: newEmployee.phone,
+        department: newEmployee.department,
+        designation: newEmployee.employmentDetails.designation,
+        joiningDate: new Date(newEmployee.employmentDetails.joinDate).toISOString(),
+        salary: {
+          basic: Number(newEmployee.salary.basic),
+          allowances: Number(newEmployee.salary.allowances) || 0,
+          deductions: Number(newEmployee.salary.deductions) || 0
         },
-        personalDetails: {
-          ...newEmployee.personalDetails,
-          dateOfBirth: new Employee.personalDetails.dateOfBirth ? 
-            new Date(newEmployee.personalDetails.dateOfBirth).toISOString() : undefined
-        }
+        bankDetails: {
+          accountName: newEmployee.bankDetails.accountName,
+          accountNumber: newEmployee.bankDetails.accountNumber,
+          bankName: newEmployee.bankDetails.bankName,
+          branchName: newEmployee.bankDetails.branch,
+          ifscCode: newEmployee.bankDetails.ifscCode
+        },
+        status: 'active',
+        emergencyContact: newEmployee.emergencyContact || {}
       };
 
-      const response = await axios.post('/api/users', employeeData);
+      console.log('Sending employee data:', employeeData);
+
+      // First create the employee
+      const response = await axios.post('/api/employees', employeeData);
+      
+      if (response.data) {
+        // Now create the initial payroll entry
+        const payrollData = {
+          employee: response.data._id,
+          basicSalary: Number(newEmployee.salary.basic),
+          month: new Date().toLocaleString('default', { month: 'long' }).toLowerCase(),
+          year: new Date().getFullYear(),
+          allowances: Number(newEmployee.salary.allowances) || 0,
+          deductions: Number(newEmployee.salary.deductions) || 0
+        };
+
+        await axios.post('/api/payroll', payrollData);
+      }
+
       toast.success('Employee added successfully');
       setEmployees([...employees, response.data]);
       setNewEmployee(initialEmployeeForm);
       setShowAddForm(false);
-      fetchEmployees(); // Refresh the list
+      setShowAddModal(false);
+      await fetchEmployees(); // Refresh the list
     } catch (error) {
-      console.error('Error adding employee:', error);
-      const errorMessage = error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || 'Failed to add employee';
+      console.error('Error adding employee:', error.response || error);
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.errors?.[0]?.msg || 
+                          'Failed to add employee';
       toast.error(errorMessage);
       setFormErrors([errorMessage]);
     } finally {
@@ -443,378 +482,148 @@ const Payroll = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      await axios.post('/api/payroll/employees', newEmployee);
-      toast.success('Employee added successfully');
-      setShowAddModal(false);
-      setNewEmployee({
-        name: '',
-        employeeId: '',
-        email: '',
-        phone: '',
-        department: '',
-        designation: '',
-        joiningDate: '',
-        salary: {
-          basic: '',
-          allowances: '0',
-          deductions: '0'
-        },
-        bankDetails: {
-          accountName: '',
-          accountNumber: '',
-          bankName: '',
-          branchName: '',
-          ifscCode: ''
-        }
-      });
-      fetchEmployees();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to add employee');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">Payroll Management</h1>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Manage employee payroll and records</p>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Payroll Management</h1>
+          <Button
+            onClick={() => setShowAddModal(true)}
+            variant="primary"
+            size="md"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add Employee
+          </Button>
         </div>
-        <Button 
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 w-full sm:w-auto justify-center"
-          size="lg"
-        >
-          <FiPlus className="w-5 h-5" />
-          Add Employee
-        </Button>
-      </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Employees"
-          value={employees.length}
-          icon={<UserCircle className="w-6 h-6 text-primary dark:text-primary" />}
-          className="text-gray-900 dark:text-white"
-        />
-        <StatCard
-          title="Total Payroll"
-          value={`₹${payrolls.reduce((acc, curr) => acc + curr.netSalary, 0).toLocaleString()}`}
-          icon={<BadgeDollarSign className="w-6 h-6 text-primary dark:text-primary" />}
-          className="text-gray-900 dark:text-white"
-        />
-        <StatCard
-          title="Pending Payrolls"
-          value={payrolls.filter(p => p.status === 'pending').length}
-          icon={<CalendarCheck2 className="w-6 h-6 text-primary dark:text-primary" />}
-          className="text-gray-900 dark:text-white"
-        />
-        <StatCard
-          title="Processed Payrolls"
-          value={payrolls.filter(p => p.status === 'paid').length}
-          icon={<FileText className="w-6 h-6 text-primary dark:text-primary" />}
-          className="text-gray-900 dark:text-white"
-        />
-      </div>
-
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-        <Input
-          type="text"
-          placeholder="Search employees..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 w-full max-w-md text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
-        />
-      </div>
-
-      {/* Employee List */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Employee Cards */}
-        <div className="lg:col-span-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredEmployees.map((employee) => (
-              <Card key={employee._id} className="p-4 hover:shadow-lg transition-shadow duration-200 bg-white dark:bg-gray-800">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
-                      <UserCircle className="w-6 h-6 text-primary dark:text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">{employee.name}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{employee.department || 'No Department'}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleGeneratePayroll(employee._id)}
-                      className={`h-8 w-8 ${
-                        payrollExists[employee._id]
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-gray-600 dark:text-gray-300'
-                      } hover:text-primary dark:hover:text-primary`}
-                      title={payrollExists[employee._id] ? 'View Existing Payroll' : 'Generate Payroll'}
-                    >
-                      <Receipt className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteEmployee(employee._id)}
-                      className="h-8 w-8 text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                    <Mail className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                    <span>{employee.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                    <BadgeDollarSign className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                    <span>₹{employee.basicSalary?.toLocaleString() || 0}/month</span>
-                  </div>
-                  {employee.phone && (
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                      <Phone className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                      <span>{employee.phone}</span>
-                    </div>
-                  )}
-                </div>
-              </Card>
+        {/* Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Input
+            type="text"
+            placeholder="Search employees..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full"
+          />
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          >
+            {months.map((month, index) => (
+              <option key={month} value={index}>{month}</option>
             ))}
-          </div>
+          </select>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          >
+            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Recent Payrolls */}
-        <div className="lg:col-span-1">
-          <Card className="p-4 bg-white dark:bg-gray-800">
-            <h3 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white">Recent Payrolls</h3>
-            <div className="space-y-4">
-              {payrolls.slice(0, 5).map((payroll) => (
-                <div key={payroll._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{payroll.employee.name}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {payroll.month} {payroll.year}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900 dark:text-white">₹{payroll.netSalary.toLocaleString()}</p>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      payroll.status === 'paid' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                    }`}>
-                      {payroll.status.charAt(0).toUpperCase() + payroll.status.slice(1)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+        {/* Employee Table */}
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Employee
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Department
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Basic Salary
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {loading ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-4 text-center">
+                    Loading...
+                  </td>
+                </tr>
+              ) : filteredEmployees.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-4 text-center">
+                    No employees found
+                  </td>
+                </tr>
+              ) : (
+                filteredEmployees.map((employee) => (
+                  <tr key={employee._id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                            <span className="text-lg font-medium text-gray-600 dark:text-gray-300">
+                              {employee.name.charAt(0)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {employee.name}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {employee.email}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {employee.department}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {employee.employmentDetails?.designation}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        ${employee.basicSalary?.toLocaleString()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Button
+                        onClick={() => handleGeneratePayroll(employee._id)}
+                        disabled={loading}
+                        variant="success"
+                        size="sm"
+                        isLoading={loading}
+                      >
+                        Generate Payroll
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {/* Add Employee Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Add New Employee</h3>
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  <FiX className="h-6 w-6" />
-                </button>
-              </div>
-            </div>
-            <form onSubmit={handleSubmit} className="p-6">
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                {/* Basic Information */}
-                <div className="col-span-2">
-                  <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4">Basic Information</h4>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={newEmployee.name}
-                    onChange={handleInputChange}
-                    required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={newEmployee.email}
-                    onChange={handleInputChange}
-                    required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={newEmployee.phone}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Department</label>
-                  <input
-                    type="text"
-                    name="department"
-                    value={newEmployee.department}
-                    onChange={handleInputChange}
-                    required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Designation</label>
-                  <input
-                    type="text"
-                    name="employmentDetails.designation"
-                    value={newEmployee.employmentDetails.designation}
-                    onChange={handleInputChange}
-                    required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Joining Date</label>
-                  <input
-                    type="date"
-                    name="employmentDetails.joinDate"
-                    value={newEmployee.employmentDetails.joinDate}
-                    onChange={handleInputChange}
-                    required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                {/* Salary Information */}
-                <div className="col-span-2">
-                  <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4 mt-4">Salary Information</h4>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Basic Salary</label>
-                  <input
-                    type="number"
-                    name="salary.basic"
-                    value={newEmployee.salary.basic}
-                    onChange={handleInputChange}
-                    required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Allowances</label>
-                  <input
-                    type="number"
-                    name="salary.allowances"
-                    value={newEmployee.salary.allowances}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Deductions</label>
-                  <input
-                    type="number"
-                    name="salary.deductions"
-                    value={newEmployee.salary.deductions}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                {/* Bank Details */}
-                <div className="col-span-2">
-                  <h4 className="text-md font-medium text-gray-900 dark:text-white mb-4 mt-4">Bank Details</h4>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Account Name</label>
-                  <input
-                    type="text"
-                    name="bankDetails.accountName"
-                    value={newEmployee.bankDetails.accountName}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Account Number</label>
-                  <input
-                    type="text"
-                    name="bankDetails.accountNumber"
-                    value={newEmployee.bankDetails.accountNumber}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bank Name</label>
-                  <input
-                    type="text"
-                    name="bankDetails.bankName"
-                    value={newEmployee.bankDetails.bankName}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">IFSC Code</label>
-                  <input
-                    type="text"
-                    name="bankDetails.ifscCode"
-                    value={newEmployee.bankDetails.ifscCode}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  {loading ? 'Adding...' : 'Add Employee'}
-                </button>
-              </div>
-            </form>
-          </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <AddEmployee onClose={() => {
+            setShowAddModal(false);
+            fetchEmployees();
+          }} />
         </div>
       )}
       <ToastContainer />

@@ -168,7 +168,7 @@ router.put('/:id', [
 });
 
 // @route   DELETE /api/purchase-orders/:id
-// @desc    Delete a purchase order
+// @desc    Soft delete a purchase order
 // @access  Private
 router.delete('/:id', auth, async (req, res) => {
   try {
@@ -177,15 +177,65 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'Purchase order not found' });
     }
 
-    // Only allow deletion of draft POs
-    if (purchaseOrder.status !== 'draft') {
+    // Only allow deletion of draft or rejected POs
+    if (!['draft', 'rejected'].includes(purchaseOrder.status)) {
       return res.status(400).json({ 
-        message: 'Only draft purchase orders can be deleted' 
+        message: 'Only draft or rejected purchase orders can be moved to trash' 
       });
     }
 
+    await purchaseOrder.softDelete(req.user.id);
+    res.json({ message: 'Purchase order moved to trash' });
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Purchase order not found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST /api/purchase-orders/:id/restore
+// @desc    Restore a deleted purchase order
+// @access  Private
+router.post('/:id/restore', auth, async (req, res) => {
+  try {
+    const purchaseOrder = await PurchaseOrder.findById(req.params.id);
+    if (!purchaseOrder) {
+      return res.status(404).json({ message: 'Purchase order not found' });
+    }
+
+    if (purchaseOrder.status !== 'deleted') {
+      return res.status(400).json({ message: 'Purchase order is not in trash' });
+    }
+
+    await purchaseOrder.restore();
+    res.json({ message: 'Purchase order restored successfully' });
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Purchase order not found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   DELETE /api/purchase-orders/:id/permanent
+// @desc    Permanently delete a purchase order
+// @access  Private
+router.delete('/:id/permanent', auth, async (req, res) => {
+  try {
+    const purchaseOrder = await PurchaseOrder.findById(req.params.id);
+    if (!purchaseOrder) {
+      return res.status(404).json({ message: 'Purchase order not found' });
+    }
+
+    if (purchaseOrder.status !== 'deleted') {
+      return res.status(400).json({ message: 'Purchase order must be in trash before permanent deletion' });
+    }
+
     await purchaseOrder.deleteOne();
-    res.json({ message: 'Purchase order removed' });
+    res.json({ message: 'Purchase order permanently deleted' });
   } catch (err) {
     console.error(err.message);
     if (err.kind === 'ObjectId') {

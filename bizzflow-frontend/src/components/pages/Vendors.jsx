@@ -33,7 +33,7 @@ const Vendors = () => {
 
     const [poForm, setPOForm] = useState({
         vendorId: '',
-        items: [{ description: '', quantity: 1, unitPrice: 0, unit: 'piece' }],
+        items: [{ description: '', quantity: 1, unitPrice: 0, unit: 'piece', total: 0 }],
         dueDate: '',
         paymentTerms: '',
         tax: 0,
@@ -69,8 +69,62 @@ const Vendors = () => {
         }
     };
 
+    const handleVendorInputChange = (e) => {
+        const { name, value } = e.target;
+        if (name.includes('bankDetails.')) {
+            const field = name.split('.')[1];
+            setVendorForm(prev => ({
+                ...prev,
+                bankDetails: {
+                    ...prev.bankDetails,
+                    [field]: value
+                }
+            }));
+        } else if (name === 'registrationType') {
+            setVendorForm(prev => ({
+                ...prev,
+                registrationType: value,
+                panNumber: value === 'pan' ? prev.panNumber : '',
+                vatNumber: value === 'vat' ? prev.vatNumber : ''
+            }));
+        } else {
+            setVendorForm(prev => ({
+                ...prev,
+                [name]: value
+            }));
+        }
+    };
+
     const handleVendorSubmit = async (e) => {
         e.preventDefault();
+        
+        // Validate required fields
+        const requiredFields = ['name', 'email', 'phone', 'address'];
+        const bankDetailsFields = ['accountName', 'accountNumber', 'bankName', 'branch'];
+        
+        const missingFields = requiredFields.filter(field => !vendorForm[field]);
+        const missingBankDetails = bankDetailsFields.filter(field => !vendorForm.bankDetails[field]);
+        
+        if (missingFields.length > 0) {
+            toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`);
+            return;
+        }
+        
+        if (missingBankDetails.length > 0) {
+            toast.error(`Please fill in all bank details: ${missingBankDetails.join(', ')}`);
+            return;
+        }
+        
+        // Validate registration number
+        if (vendorForm.registrationType === 'pan' && !vendorForm.panNumber) {
+            toast.error('PAN number is required');
+            return;
+        }
+        if (vendorForm.registrationType === 'vat' && !vendorForm.vatNumber) {
+            toast.error('VAT number is required');
+            return;
+        }
+
         try {
             setLoading(true);
             if (selectedVendor) {
@@ -90,28 +144,105 @@ const Vendors = () => {
         }
     };
 
+    const handlePOInputChange = (e, index) => {
+        const { name, value } = e.target;
+        if (name.includes('items.')) {
+            const field = name.split('.')[1];
+            const newItems = [...poForm.items];
+            const numericValue = field === 'quantity' || field === 'unitPrice' ? Number(value) : value;
+            
+            newItems[index] = {
+                ...newItems[index],
+                [field]: numericValue
+            };
+
+            // Update total if quantity or unit price changes
+            if (field === 'quantity' || field === 'unitPrice') {
+                newItems[index].total = newItems[index].quantity * newItems[index].unitPrice;
+            }
+
+            setPOForm(prev => ({
+                ...prev,
+                items: newItems
+            }));
+        } else {
+            setPOForm(prev => ({
+                ...prev,
+                [name]: name === 'tax' || name === 'discount' ? Number(value) : value
+            }));
+        }
+    };
+
     const handlePOSubmit = async (e) => {
         e.preventDefault();
+        
         try {
+            // Validate required fields
+            if (!poForm.vendorId) {
+                toast.error('Please select a vendor');
+                return;
+            }
+
+            if (!poForm.dueDate) {
+                toast.error('Please select a due date');
+                return;
+            }
+
+            // Validate items
+            if (poForm.items.length === 0) {
+                toast.error('Please add at least one item');
+                return;
+            }
+
+            const invalidItems = poForm.items.filter(
+                item => !item.description || item.quantity < 1 || item.unitPrice < 0
+            );
+
+            if (invalidItems.length > 0) {
+                toast.error('Please fill in all item details correctly');
+                return;
+            }
+
             setLoading(true);
+
+            // Prepare form data
             const formData = {
-                ...poForm,
+                vendorId: poForm.vendorId,
                 items: poForm.items.map(item => ({
-                    ...item,
+                    description: item.description,
                     quantity: Number(item.quantity),
-                    unitPrice: Number(item.unitPrice)
+                    unitPrice: Number(item.unitPrice),
+                    unit: item.unit,
+                    total: Number(item.quantity) * Number(item.unitPrice)
                 })),
-                tax: Number(poForm.tax),
-                discount: Number(poForm.discount)
+                dueDate: new Date(poForm.dueDate).toISOString(),
+                paymentTerms: poForm.paymentTerms || '',
+                tax: Number(poForm.tax || 0),
+                discount: Number(poForm.discount || 0),
+                notes: poForm.notes || '',
+                status: 'draft'
             };
+
+            // Calculate subtotal and total
+            formData.subtotal = formData.items.reduce((sum, item) => sum + item.total, 0);
+            formData.total = formData.subtotal + formData.tax - formData.discount;
+
+            console.log('Submitting purchase order:', formData);
+
+            const response = await axios.post('/api/purchase-orders', formData);
             
-            await axios.post('/api/purchase-orders', formData);
-            toast.success('Purchase order created successfully');
-            setShowPOModal(false);
-            fetchPurchaseOrders();
-            resetPOForm();
+            if (response.data) {
+                toast.success('Purchase order created successfully');
+                setShowPOModal(false);
+                resetPOForm();
+                await fetchPurchaseOrders();
+            }
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to create purchase order');
+            console.error('Error creating purchase order:', error.response || error);
+            const errorMessage = error.response?.data?.message || 
+                               error.response?.data?.errors?.[0]?.msg || 
+                               'Failed to create purchase order';
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -160,57 +291,26 @@ const Vendors = () => {
     };
 
     // Form handlers
-    const handleVendorInputChange = (e) => {
-        const { name, value } = e.target;
-        if (name.includes('bankDetails.')) {
-            const field = name.split('.')[1];
-            setVendorForm(prev => ({
-                ...prev,
-                bankDetails: {
-                    ...prev.bankDetails,
-                    [field]: value
-                }
-            }));
-        } else {
-            setVendorForm(prev => ({
-                ...prev,
-                [name]: value
-            }));
-        }
-    };
-
-    const handlePOInputChange = (e, index) => {
-        const { name, value } = e.target;
-        if (name.startsWith('items.')) {
-            const field = name.split('.')[1];
-            const newItems = [...poForm.items];
-            newItems[index] = {
-                ...newItems[index],
-                [field]: value
-            };
-            setPOForm(prev => ({
-                ...prev,
-                items: newItems
-            }));
-        } else {
-            setPOForm(prev => ({
-                ...prev,
-                [name]: value
-            }));
-        }
-    };
-
     const addPOItem = () => {
         setPOForm(prev => ({
             ...prev,
-            items: [...prev.items, { description: '', quantity: 1, unitPrice: 0, unit: 'piece' }]
+            items: [
+                ...prev.items,
+                {
+                    description: '',
+                    quantity: 1,
+                    unitPrice: 0,
+                    unit: 'piece',
+                    total: 0
+                }
+            ]
         }));
     };
 
-    const removePOItem = (index) => {
+    const removePOItem = (indexToRemove) => {
         setPOForm(prev => ({
             ...prev,
-            items: prev.items.filter((_, i) => i !== index)
+            items: prev.items.filter((_, index) => index !== indexToRemove)
         }));
     };
 
@@ -252,7 +352,7 @@ const Vendors = () => {
     const resetPOForm = () => {
         setPOForm({
             vendorId: '',
-            items: [{ description: '', quantity: 1, unitPrice: 0, unit: 'piece' }],
+            items: [{ description: '', quantity: 1, unitPrice: 0, unit: 'piece', total: 0 }],
             dueDate: '',
             paymentTerms: '',
             tax: 0,
@@ -293,12 +393,12 @@ const Vendors = () => {
                         >
                             <FiPlus className="mr-2" /> Add Vendor
                         </button>
-                        <button
-                            onClick={() => setShowPOModal(true)}
-                            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
-                        >
-                            <FiPlus className="mr-2" /> Create PO
-                        </button>
+                        
+                        
+        
+    
+        
+                        
                     </div>
                 </div>
 
@@ -350,13 +450,13 @@ const Vendors = () => {
                                             </button>
                                             <button
                                                 onClick={async () => {
-                                                    if (window.confirm('Are you sure you want to delete this vendor?')) {
+                                                    if (window.confirm('Are you sure you want to delete this vendor? The vendor will be moved to trash.')) {
                                                         try {
                                                             await axios.delete(`/api/vendors/${vendor._id}`);
-                                                            toast.success('Vendor deleted successfully');
+                                                            toast.success('Vendor moved to trash');
                                                             fetchVendors();
                                                         } catch (error) {
-                                                            toast.error('Failed to delete vendor');
+                                                            toast.error(error.response?.data?.message || 'Failed to delete vendor');
                                                         }
                                                     }
                                                 }}
@@ -467,13 +567,13 @@ const Vendors = () => {
                                                         </button>
                                                         <button
                                                             onClick={async () => {
-                                                                if (window.confirm('Are you sure you want to delete this purchase order?')) {
+                                                                if (window.confirm('Are you sure you want to delete this purchase order? The order will be moved to trash.')) {
                                                                     try {
                                                                         await axios.delete(`/api/purchase-orders/${po._id}`);
-                                                                        toast.success('Purchase order deleted');
+                                                                        toast.success('Purchase order moved to trash');
                                                                         fetchPurchaseOrders();
                                                                     } catch (error) {
-                                                                        toast.error('Failed to delete purchase order');
+                                                                        toast.error(error.response?.data?.message || 'Failed to delete purchase order');
                                                                     }
                                                                 }
                                                             }}
@@ -548,7 +648,7 @@ const Vendors = () => {
                                         <div className="mt-6 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
                                             <div className="sm:col-span-6">
                                                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Vendor Name
+                                                    Vendor Name *
                                                 </label>
                                                 <input
                                                     type="text"
@@ -557,12 +657,58 @@ const Vendors = () => {
                                                     value={vendorForm.name}
                                                     onChange={handleVendorInputChange}
                                                     className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div className="sm:col-span-3">
+                                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    Email *
+                                                </label>
+                                                <input
+                                                    type="email"
+                                                    name="email"
+                                                    id="email"
+                                                    value={vendorForm.email}
+                                                    onChange={handleVendorInputChange}
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div className="sm:col-span-3">
+                                                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    Phone *
+                                                </label>
+                                                <input
+                                                    type="tel"
+                                                    name="phone"
+                                                    id="phone"
+                                                    value={vendorForm.phone}
+                                                    onChange={handleVendorInputChange}
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div className="sm:col-span-6">
+                                                <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    Address *
+                                                </label>
+                                                <textarea
+                                                    name="address"
+                                                    id="address"
+                                                    value={vendorForm.address}
+                                                    onChange={handleVendorInputChange}
+                                                    rows={3}
+                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                    required
                                                 />
                                             </div>
 
                                             <div className="sm:col-span-6 mb-4">
                                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                                    Registration Type
+                                                    Registration Type *
                                                 </label>
                                                 <div className="flex items-center space-x-4">
                                                     <div className="flex items-center">
@@ -574,6 +720,7 @@ const Vendors = () => {
                                                             checked={vendorForm.registrationType === 'pan'}
                                                             onChange={handleVendorInputChange}
                                                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                                                            required
                                                         />
                                                         <label htmlFor="pan" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                                                             PAN Number
@@ -598,7 +745,7 @@ const Vendors = () => {
 
                                             <div className="sm:col-span-6">
                                                 <label htmlFor={vendorForm.registrationType + "Number"} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    {vendorForm.registrationType.toUpperCase()} Number
+                                                    {vendorForm.registrationType.toUpperCase()} Number *
                                                 </label>
                                                 <input
                                                     type="text"
@@ -608,49 +755,90 @@ const Vendors = () => {
                                                     onChange={handleVendorInputChange}
                                                     className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                     placeholder={`Enter ${vendorForm.registrationType.toUpperCase()} number`}
+                                                    required
                                                 />
                                             </div>
 
                                             <div className="sm:col-span-6">
-                                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Email
+                                                <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    Category *
                                                 </label>
-                                                <input
-                                                    type="email"
-                                                    name="email"
-                                                    id="email"
-                                                    value={vendorForm.email}
+                                                <select
+                                                    name="category"
+                                                    id="category"
+                                                    value={vendorForm.category}
                                                     onChange={handleVendorInputChange}
                                                     className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                />
+                                                    required
+                                                >
+                                                    <option value="supplier">Supplier</option>
+                                                    <option value="manufacturer">Manufacturer</option>
+                                                    <option value="distributor">Distributor</option>
+                                                    <option value="service-provider">Service Provider</option>
+                                                </select>
                                             </div>
 
+                                            {/* Bank Details Section */}
                                             <div className="sm:col-span-6">
-                                                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Phone
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    name="phone"
-                                                    id="phone"
-                                                    value={vendorForm.phone}
-                                                    onChange={handleVendorInputChange}
-                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                />
-                                            </div>
-
-                                            <div className="sm:col-span-6">
-                                                <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    Address
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    name="address"
-                                                    id="address"
-                                                    value={vendorForm.address}
-                                                    onChange={handleVendorInputChange}
-                                                    className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                />
+                                                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Bank Details</h4>
+                                                <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+                                                    <div>
+                                                        <label htmlFor="bankDetails.accountName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                            Account Name *
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            name="bankDetails.accountName"
+                                                            id="bankDetails.accountName"
+                                                            value={vendorForm.bankDetails.accountName}
+                                                            onChange={handleVendorInputChange}
+                                                            className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label htmlFor="bankDetails.accountNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                            Account Number *
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            name="bankDetails.accountNumber"
+                                                            id="bankDetails.accountNumber"
+                                                            value={vendorForm.bankDetails.accountNumber}
+                                                            onChange={handleVendorInputChange}
+                                                            className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label htmlFor="bankDetails.bankName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                            Bank Name *
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            name="bankDetails.bankName"
+                                                            id="bankDetails.bankName"
+                                                            value={vendorForm.bankDetails.bankName}
+                                                            onChange={handleVendorInputChange}
+                                                            className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label htmlFor="bankDetails.branch" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                            Branch *
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            name="bankDetails.branch"
+                                                            id="bankDetails.branch"
+                                                            value={vendorForm.bankDetails.branch}
+                                                            onChange={handleVendorInputChange}
+                                                            className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                            required
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -692,7 +880,7 @@ const Vendors = () => {
                                         <select
                                             name="vendorId"
                                             value={poForm.vendorId}
-                                            onChange={handlePOInputChange}
+                                            onChange={(e) => handlePOInputChange(e)}
                                             className="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                             required
                                         >
@@ -710,74 +898,82 @@ const Vendors = () => {
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             Items *
                                         </label>
-                                        {poForm.items.map((item, index) => (
-                                            <div key={index} className="grid grid-cols-12 gap-4 mb-4">
-                                                <div className="col-span-5">
-                                                    <input
-                                                        type="text"
-                                                        name={`items.${index}.description`}
-                                                        placeholder="Item description"
-                                                        value={item.description}
-                                                        onChange={(e) => handlePOInputChange(e, index)}
-                                                        className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                        required
-                                                    />
-                                                </div>
-                                                <div className="col-span-2">
-                                                    <input
-                                                        type="number"
-                                                        name={`items.${index}.quantity`}
-                                                        placeholder="Qty"
-                                                        value={item.quantity}
-                                                        onChange={(e) => handlePOInputChange(e, index)}
-                                                        className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                        min="1"
-                                                        required
-                                                    />
-                                                </div>
-                                                <div className="col-span-2">
-                                                    <select
-                                                        name={`items.${index}.unit`}
-                                                        value={item.unit}
-                                                        onChange={(e) => handlePOInputChange(e, index)}
-                                                        className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                    >
-                                                        <option value="piece">Piece</option>
-                                                        <option value="kg">KG</option>
-                                                        <option value="meter">Meter</option>
-                                                        <option value="liter">Liter</option>
-                                                    </select>
-                                                </div>
-                                                <div className="col-span-2">
-                                                    <input
-                                                        type="number"
-                                                        name={`items.${index}.unitPrice`}
-                                                        placeholder="Price"
-                                                        value={item.unitPrice}
-                                                        onChange={(e) => handlePOInputChange(e, index)}
-                                                        className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                        min="0"
-                                                        step="0.01"
-                                                        required
-                                                    />
-                                                </div>
-                                                <div className="col-span-1">
-                                                    {index > 0 && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => removePOItem(index)}
-                                                            className="text-red-600 hover:text-red-800"
+                                        <div className="space-y-4">
+                                            {poForm.items.map((item, index) => (
+                                                <div key={index} className="grid grid-cols-12 gap-4 items-center bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                                                    <div className="col-span-4">
+                                                        <input
+                                                            type="text"
+                                                            name={`items.description`}
+                                                            placeholder="Item description"
+                                                            value={item.description}
+                                                            onChange={(e) => handlePOInputChange(e, index)}
+                                                            className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-2">
+                                                        <input
+                                                            type="number"
+                                                            name={`items.quantity`}
+                                                            placeholder="Qty"
+                                                            value={item.quantity}
+                                                            onChange={(e) => handlePOInputChange(e, index)}
+                                                            className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                            min="1"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-2">
+                                                        <select
+                                                            name={`items.unit`}
+                                                            value={item.unit}
+                                                            onChange={(e) => handlePOInputChange(e, index)}
+                                                            className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                         >
-                                                            <FiTrash2 className="h-5 w-5" />
-                                                        </button>
-                                                    )}
+                                                            <option value="piece">Piece</option>
+                                                            <option value="kg">KG</option>
+                                                            <option value="meter">Meter</option>
+                                                            <option value="liter">Liter</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="col-span-2">
+                                                        <input
+                                                            type="number"
+                                                            name={`items.unitPrice`}
+                                                            placeholder="Price"
+                                                            value={item.unitPrice}
+                                                            onChange={(e) => handlePOInputChange(e, index)}
+                                                            className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                            min="0"
+                                                            step="0.01"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-1">
+                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                            ${(item.quantity * item.unitPrice).toFixed(2)}
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-span-1">
+                                                        {poForm.items.length > 1 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removePOItem(index)}
+                                                                className="text-red-600 hover:text-red-800 p-1"
+                                                                title="Remove Item"
+                                                            >
+                                                                <FiTrash2 className="h-5 w-5" />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                         <button
                                             type="button"
                                             onClick={addPOItem}
-                                            className="mt-2 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                            className="mt-4 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                         >
                                             <FiPlus className="mr-2" /> Add Item
                                         </button>

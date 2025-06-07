@@ -54,7 +54,7 @@ const purchaseOrderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'pending', 'approved', 'rejected', 'cancelled', 'completed'],
+    enum: ['draft', 'pending', 'approved', 'rejected', 'cancelled', 'completed', 'deleted'],
     default: 'draft'
   },
   paymentStatus: {
@@ -119,6 +119,15 @@ const purchaseOrderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   }
 }, {
   timestamps: true
@@ -158,6 +167,22 @@ purchaseOrderSchema.pre('save', function(next) {
   
   next();
 });
+
+// Add a method to soft delete
+purchaseOrderSchema.methods.softDelete = async function(userId) {
+  this.status = 'deleted';
+  this.deletedAt = new Date();
+  this.deletedBy = userId;
+  await this.save();
+};
+
+// Add a method to restore
+purchaseOrderSchema.methods.restore = async function() {
+  this.status = 'draft';
+  this.deletedAt = null;
+  this.deletedBy = null;
+  await this.save();
+};
 
 // Indexes for faster queries
 purchaseOrderSchema.index({ orderNumber: 1 });

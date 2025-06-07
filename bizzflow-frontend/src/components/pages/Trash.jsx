@@ -1,35 +1,89 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trash2, RefreshCcw, XCircle } from 'lucide-react';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const Trash = () => {
-  // Example deleted items - in a real app, this would come from your backend
-  const [deletedItems, setDeletedItems] = useState([
-    {
-      id: 1,
-      name: 'Project A',
-      type: 'Task',
-      deletedAt: '2024-03-20T10:00:00',
-      deletedBy: 'John Doe'
-    },
-    {
-      id: 2,
-      name: 'Vendor XYZ',
-      type: 'Vendor',
-      deletedAt: '2024-03-19T15:30:00',
-      deletedBy: 'Jane Smith'
-    }
-  ]);
+  const [deletedItems, setDeletedItems] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleRestore = (id) => {
-    // Implement restore logic here
-    setDeletedItems(deletedItems.filter(item => item.id !== id));
-    // You would also want to send this to your backend
+  useEffect(() => {
+    fetchDeletedItems();
+  }, []);
+
+  const fetchDeletedItems = async () => {
+    setLoading(true);
+    try {
+      // Fetch deleted vendors
+      const vendorsResponse = await axios.get('/api/vendors', {
+        params: { status: 'deleted' }
+      });
+      const vendors = vendorsResponse.data.map(vendor => ({
+        id: vendor._id,
+        name: vendor.name,
+        type: 'Vendor',
+        deletedAt: vendor.deletedAt,
+        deletedBy: vendor.deletedBy?.name || 'Unknown',
+        details: `${vendor.email} | ${vendor.phone}`
+      }));
+
+      // Fetch deleted purchase orders
+      const posResponse = await axios.get('/api/purchase-orders', {
+        params: { status: 'deleted' }
+      });
+      const purchaseOrders = posResponse.data.map(po => ({
+        id: po._id,
+        name: po.orderNumber,
+        type: 'Purchase Order',
+        deletedAt: po.deletedAt,
+        deletedBy: po.deletedBy?.name || 'Unknown',
+        details: `Vendor: ${po.vendorId.name} | Total: $${po.total.toFixed(2)}`
+      }));
+
+      setDeletedItems([...vendors, ...purchaseOrders]);
+    } catch (error) {
+      toast.error('Failed to fetch deleted items');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handlePermanentDelete = (id) => {
-    // Implement permanent delete logic here
-    setDeletedItems(deletedItems.filter(item => item.id !== id));
-    // You would also want to send this to your backend
+  const handleRestore = async (item) => {
+    try {
+      setLoading(true);
+      const endpoint = item.type === 'Vendor' 
+        ? `/api/vendors/${item.id}/restore`
+        : `/api/purchase-orders/${item.id}/restore`;
+
+      await axios.post(endpoint);
+      toast.success(`${item.type} restored successfully`);
+      setDeletedItems(deletedItems.filter(i => i.id !== item.id));
+    } catch (error) {
+      toast.error(error.response?.data?.message || `Failed to restore ${item.type.toLowerCase()}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePermanentDelete = async (item) => {
+    if (!window.confirm(`Are you sure you want to permanently delete this ${item.type.toLowerCase()}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const endpoint = item.type === 'Vendor' 
+        ? `/api/vendors/${item.id}/permanent`
+        : `/api/purchase-orders/${item.id}/permanent`;
+
+      await axios.delete(endpoint);
+      toast.success(`${item.type} permanently deleted`);
+      setDeletedItems(deletedItems.filter(i => i.id !== item.id));
+    } catch (error) {
+      toast.error(error.response?.data?.message || `Failed to delete ${item.type.toLowerCase()}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -44,7 +98,12 @@ const Trash = () => {
         </p>
       </div>
 
-      {deletedItems.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
+          <p className="mt-4 text-gray-500 dark:text-gray-400">Loading...</p>
+        </div>
+      ) : deletedItems.length === 0 ? (
         <div className="text-center py-12">
           <Trash2 className="w-12 h-12 mx-auto text-gray-400" />
           <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
@@ -64,6 +123,9 @@ const Trash = () => {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Type
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Details
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Deleted By
@@ -86,6 +148,9 @@ const Trash = () => {
                     {item.type}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    {item.details}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {item.deletedBy}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -93,14 +158,18 @@ const Trash = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
-                      onClick={() => handleRestore(item.id)}
+                      onClick={() => handleRestore(item)}
+                      disabled={loading}
                       className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3"
+                      title="Restore"
                     >
                       <RefreshCcw className="w-5 h-5" />
                     </button>
                     <button
-                      onClick={() => handlePermanentDelete(item.id)}
+                      onClick={() => handlePermanentDelete(item)}
+                      disabled={loading}
                       className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                      title="Delete Permanently"
                     >
                       <XCircle className="w-5 h-5" />
                     </button>

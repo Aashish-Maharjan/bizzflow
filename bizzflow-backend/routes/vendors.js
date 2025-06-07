@@ -156,15 +156,19 @@ router.put('/:id', [
 });
 
 // @route   DELETE /api/vendors/:id
-// @desc    Delete a vendor
+// @desc    Soft delete a vendor
 // @access  Private
 router.delete('/:id', auth, async (req, res) => {
   try {
-    // Check if vendor has any purchase orders
-    const purchaseOrders = await PurchaseOrder.find({ vendorId: req.params.id });
+    // Check if vendor has any active purchase orders
+    const purchaseOrders = await PurchaseOrder.find({ 
+      vendorId: req.params.id,
+      status: { $nin: ['completed', 'cancelled', 'deleted'] }
+    });
+    
     if (purchaseOrders.length > 0) {
       return res.status(400).json({ 
-        message: 'Cannot delete vendor with existing purchase orders' 
+        message: 'Cannot delete vendor with active purchase orders' 
       });
     }
 
@@ -173,8 +177,58 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'Vendor not found' });
     }
 
+    await vendor.softDelete(req.user.id);
+    res.json({ message: 'Vendor moved to trash' });
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST /api/vendors/:id/restore
+// @desc    Restore a deleted vendor
+// @access  Private
+router.post('/:id/restore', auth, async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.params.id);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    if (vendor.status !== 'deleted') {
+      return res.status(400).json({ message: 'Vendor is not in trash' });
+    }
+
+    await vendor.restore();
+    res.json({ message: 'Vendor restored successfully' });
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   DELETE /api/vendors/:id/permanent
+// @desc    Permanently delete a vendor
+// @access  Private
+router.delete('/:id/permanent', auth, async (req, res) => {
+  try {
+    const vendor = await Vendor.findById(req.params.id);
+    if (!vendor) {
+      return res.status(404).json({ message: 'Vendor not found' });
+    }
+
+    if (vendor.status !== 'deleted') {
+      return res.status(400).json({ message: 'Vendor must be in trash before permanent deletion' });
+    }
+
     await vendor.deleteOne();
-    res.json({ message: 'Vendor removed' });
+    res.json({ message: 'Vendor permanently deleted' });
   } catch (err) {
     console.error(err.message);
     if (err.kind === 'ObjectId') {

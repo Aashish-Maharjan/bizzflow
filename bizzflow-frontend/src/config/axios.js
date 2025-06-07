@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Set base URL for all axios requests
-axios.defaults.baseURL = 'http://localhost:5001';  // Make sure this matches your backend port
+axios.defaults.baseURL = 'http://localhost:5002';  // Make sure this matches your backend port
 
 // Add request interceptor to include token in headers
 axios.interceptors.request.use(

@@ -45,106 +45,37 @@ const TAX_RATES = {
 const VAT_THRESHOLD = 5000000; // 50 Lakhs
 const VAT_RATE = 0.13; // 13%
 
-// Convert AD date to BS
+// Convert AD date to BS using NepaliDate
 const convertToBS = (adDate) => {
     try {
-        const date = new Date(adDate);
-        if (isNaN(date.getTime())) {
+        // Handle ISO string date
+        let date;
+        if (typeof adDate === 'string') {
+            date = new Date(adDate);
+        } else if (adDate instanceof Date) {
+            date = adDate;
+        } else {
+            console.error('Invalid date input:', adDate);
             return 'Invalid Date';
         }
-        const year = date.getFullYear();
-        const month = date.getMonth() + 1; // JavaScript months are 0-based
-        const day = date.getDate();
-        
-        const bsDate = ad2bs(year, month, day);
-        return `${bsDate.en.year}/${String(bsDate.en.month).padStart(2, '0')}/${String(bsDate.en.day).padStart(2, '0')}`;
+
+        if (isNaN(date.getTime())) {
+            console.error('Invalid date value:', adDate);
+            return 'Invalid Date';
+        }
+
+        // Use NepaliDate for conversion
+        const nepaliDate = new NepaliDate(date);
+        const year = nepaliDate.getYear();
+        const month = nepaliDate.getMonth() + 1; // NepaliDate months are 0-based
+        const day = nepaliDate.getDate();
+
+        // Format the date
+        return `${year}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
     } catch (error) {
         console.error('Date conversion error:', error);
-        return 'Date conversion error';
+        return 'Conversion error';
     }
-};
-
-// Calculate taxable income
-const calculateTaxableIncome = () => {
-    const revenue = parseFloat(businessData.annualRevenue) || 0;
-    const deductions = parseFloat(businessData.deductions) || 0;
-    const expenses = parseFloat(businessData.expenses) || 0;
-    return revenue - deductions - expenses;
-};
-
-// Calculate tax
-const calculateTax = () => {
-    const taxableIncome = calculateTaxableIncome();
-    const taxRate = TAX_RATES[businessData.businessType];
-    const tax = taxableIncome * taxRate;
-    
-    // Calculate VAT if applicable
-    const vatAmount = businessData.registrationType === 'vat' && taxableIncome > VAT_THRESHOLD 
-        ? taxableIncome * VAT_RATE 
-        : 0;
-
-    setCalculatedTax({
-        taxableIncome,
-        taxRate: taxRate * 100,
-        totalTax: tax,
-        vatAmount,
-        fiscalYear: businessData.fiscalYear,
-        registrationType: businessData.registrationType,
-        registrationNumber: businessData.registrationType === 'pan' ? businessData.panNumber : businessData.vatNumber
-    });
-
-    // Add to tax history
-    const historyEntry = {
-        date: new Date().toISOString(),
-        fiscalYear: businessData.fiscalYear,
-        taxableIncome,
-        taxRate: taxRate * 100,
-        totalTax: tax,
-        vatAmount,
-        status: 'Calculated',
-        registrationType: businessData.registrationType,
-        registrationNumber: businessData.registrationType === 'pan' ? businessData.panNumber : businessData.vatNumber
-    };
-
-    setTaxHistory(prev => [historyEntry, ...prev]);
-};
-
-// Handle payment integration
-const handlePayment = async () => {
-    if (!calculatedTax) return;
-
-    setLoading(true);
-    try {
-        // Example integration with eSewa/Khalti
-        const paymentData = {
-            amount: calculatedTax.totalTax,
-            productName: `Tax Payment FY ${calculatedTax.fiscalYear}`,
-            paymentMethod: paymentMethod
-        };
-
-        // This would be replaced with actual eSewa/Khalti API integration
-        const response = await mockPaymentAPI(paymentData);
-
-        if (response.success) {
-            // Update tax history with payment status
-            setTaxHistory(prev => prev.map((entry, index) => 
-                index === 0 ? { ...entry, status: 'Paid', paymentMethod } : entry
-            ));
-        }
-    } catch (error) {
-        console.error('Payment failed:', error);
-    } finally {
-        setLoading(false);
-    }
-};
-
-// Mock payment API (replace with actual eSewa/Khalti integration)
-const mockPaymentAPI = async (data) => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve({ success: true, message: 'Payment successful' });
-        }, 2000);
-    });
 };
 
 const Compliance = () => {
@@ -164,6 +95,89 @@ const Compliance = () => {
     const [paymentMethod, setPaymentMethod] = useState('');
     const [loading, setLoading] = useState(false);
     const [activeSection, setActiveSection] = useState('calculator');
+
+    // Calculate taxable income
+    const calculateTaxableIncome = () => {
+        const revenue = parseFloat(businessData.annualRevenue) || 0;
+        const deductions = parseFloat(businessData.deductions) || 0;
+        const expenses = parseFloat(businessData.expenses) || 0;
+        return revenue - deductions - expenses;
+    };
+
+    // Calculate tax
+    const calculateTax = () => {
+        const taxableIncome = calculateTaxableIncome();
+        const taxRate = TAX_RATES[businessData.businessType];
+        const tax = taxableIncome * taxRate;
+        
+        // Calculate VAT if applicable
+        const vatAmount = businessData.registrationType === 'vat' && taxableIncome > VAT_THRESHOLD 
+            ? taxableIncome * VAT_RATE 
+            : 0;
+
+        setCalculatedTax({
+            taxableIncome,
+            taxRate: taxRate * 100,
+            totalTax: tax,
+            vatAmount,
+            fiscalYear: businessData.fiscalYear,
+            registrationType: businessData.registrationType,
+            registrationNumber: businessData.registrationType === 'pan' ? businessData.panNumber : businessData.vatNumber
+        });
+
+        // Add to tax history with properly formatted date
+        const historyEntry = {
+            date: new Date().toISOString(), // Store as ISO string
+            fiscalYear: businessData.fiscalYear,
+            taxableIncome,
+            taxRate: taxRate * 100,
+            totalTax: tax,
+            vatAmount,
+            status: 'Calculated',
+            registrationType: businessData.registrationType,
+            registrationNumber: businessData.registrationType === 'pan' ? businessData.panNumber : businessData.vatNumber
+        };
+
+        setTaxHistory(prev => [historyEntry, ...prev]);
+    };
+
+    // Handle payment integration
+    const handlePayment = async () => {
+        if (!calculatedTax) return;
+
+        setLoading(true);
+        try {
+            // Example integration with eSewa/Khalti
+            const paymentData = {
+                amount: calculatedTax.totalTax,
+                productName: `Tax Payment FY ${calculatedTax.fiscalYear}`,
+                paymentMethod: paymentMethod
+            };
+
+            // This would be replaced with actual eSewa/Khalti API integration
+            const response = await mockPaymentAPI(paymentData);
+
+            if (response.success) {
+                // Update tax history with payment status
+                setTaxHistory(prev => prev.map((entry, index) => 
+                    index === 0 ? { ...entry, status: 'Paid', paymentMethod } : entry
+                ));
+            }
+        } catch (error) {
+            console.error('Payment failed:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Mock payment API (replace with actual eSewa/Khalti integration)
+    const mockPaymentAPI = async (data) => {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve({ success: true, message: 'Payment successful' });
+            }, 2000);
+        });
+    };
 
     return (
         <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900/50 py-8 px-4 sm:px-6 lg:px-8 font-sans antialiased">

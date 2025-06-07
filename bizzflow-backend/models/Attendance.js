@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const attendanceSchema = new mongoose.Schema({
   employeeId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Employee',
+    ref: 'User',
     required: true
   },
   date: {
@@ -13,15 +13,29 @@ const attendanceSchema = new mongoose.Schema({
   checkIn: {
     time: Date,
     location: {
-      type: { type: String, default: 'Point' },
-      coordinates: [Number]
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number],
+        default: undefined
+      }
     }
   },
   checkOut: {
     time: Date,
     location: {
-      type: { type: String, default: 'Point' },
-      coordinates: [Number]
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number],
+        default: undefined
+      }
     }
   },
   status: {
