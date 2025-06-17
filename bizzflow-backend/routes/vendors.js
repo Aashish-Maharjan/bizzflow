@@ -4,18 +4,41 @@ const { check, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const Vendor = require('../models/Vendor');
 const PurchaseOrder = require('../models/PurchaseOrder');
+const mongoose = require('mongoose');
 
 // @route   GET /api/vendors
 // @desc    Get all vendors
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
+    console.log('Fetching vendors...');
+    console.log('User ID:', req.user.id);
+    
     const vendors = await Vendor.find()
       .sort({ createdAt: -1 });
+    
+    console.log(`Found ${vendors.length} vendors`);
     res.json(vendors);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('Error in fetching vendors:', {
+      message: err.message,
+      stack: err.stack,
+      userId: req.user?.id
+    });
+
+    // Check if it's a MongoDB connection error
+    if (err.name === 'MongooseError' || err.name === 'MongoError') {
+      console.error('MongoDB Error Details:', {
+        name: err.name,
+        code: err.code,
+        state: mongoose.connection.readyState
+      });
+    }
+
+    res.status(500).json({ 
+      message: 'Server Error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
@@ -48,49 +71,131 @@ router.post('/', [
     check('email', 'Please include a valid email').isEmail(),
     check('phone', 'Phone number is required').not().isEmpty(),
     check('address', 'Address is required').not().isEmpty(),
-    check('registrationType', 'Registration type is required').isIn(['pan', 'vat']),
+    check('registrationType', 'Registration type must be either PAN or VAT').isIn(['pan', 'vat']),
+    check('panNumber')
+      .if((value, { req }) => req.body.registrationType === 'pan')
+      .not()
+      .isEmpty()
+      .withMessage('PAN number is required when registration type is PAN'),
+    check('vatNumber')
+      .if((value, { req }) => req.body.registrationType === 'vat')
+      .not()
+      .isEmpty()
+      .withMessage('VAT number is required when registration type is VAT'),
     check('bankDetails.accountName', 'Account name is required').not().isEmpty(),
     check('bankDetails.accountNumber', 'Account number is required').not().isEmpty(),
     check('bankDetails.bankName', 'Bank name is required').not().isEmpty(),
     check('bankDetails.branch', 'Branch name is required').not().isEmpty()
   ]
 ], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
   try {
+    console.log('Creating new vendor...');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     // Check if vendor with same email exists
-    let vendor = await Vendor.findOne({ email: req.body.email });
-    if (vendor) {
-      return res.status(400).json({ message: 'Vendor already exists' });
+    let existingVendor = await Vendor.findOne({ email: req.body.email });
+    if (existingVendor) {
+      console.log('Vendor with email already exists:', req.body.email);
+      return res.status(400).json({ message: 'Vendor with this email already exists' });
     }
 
-    // Check for duplicate PAN/VAT number
+    // Check for duplicate registration numbers
+    const query = {};
     if (req.body.registrationType === 'pan' && req.body.panNumber) {
-      vendor = await Vendor.findOne({ panNumber: req.body.panNumber });
-      if (vendor) {
-        return res.status(400).json({ message: 'PAN number already registered' });
-      }
-    }
-    if (req.body.registrationType === 'vat' && req.body.vatNumber) {
-      vendor = await Vendor.findOne({ vatNumber: req.body.vatNumber });
-      if (vendor) {
-        return res.status(400).json({ message: 'VAT number already registered' });
-      }
+      query.panNumber = req.body.panNumber;
+      query.registrationType = 'pan';
+    } else if (req.body.registrationType === 'vat' && req.body.vatNumber) {
+      query.vatNumber = req.body.vatNumber;
+      query.registrationType = 'vat';
     }
 
-    vendor = new Vendor({
-      ...req.body,
+    existingVendor = await Vendor.findOne(query);
+    if (existingVendor) {
+      const regType = req.body.registrationType.toUpperCase();
+      console.log(`${regType} number already registered:`, req.body[`${req.body.registrationType}Number`]);
+      return res.status(400).json({ message: `${regType} number already registered` });
+    }
+
+    // Create new vendor with only the required registration number
+    const vendorData = {
+      name: req.body.name,
+      email: req.body.email,
+      phone: req.body.phone,
+      address: req.body.address,
+      registrationType: req.body.registrationType,
+      category: req.body.category || 'supplier',
+      bankDetails: {
+        accountName: req.body.bankDetails.accountName,
+        accountNumber: req.body.bankDetails.accountNumber,
+        bankName: req.body.bankDetails.bankName,
+        branch: req.body.bankDetails.branch
+      },
+      status: 'active',
       createdBy: req.user.id
-    });
+    };
 
+    // Add only the relevant registration number
+    if (req.body.registrationType === 'pan') {
+      vendorData.panNumber = req.body.panNumber;
+      vendorData.vatNumber = null;
+    } else {
+      vendorData.vatNumber = req.body.vatNumber;
+      vendorData.panNumber = null;
+    }
+
+    const vendor = new Vendor(vendorData);
+
+    console.log('Saving vendor...');
     await vendor.save();
+    console.log('Vendor created successfully:', vendor._id);
+
     res.json(vendor);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('Error in creating vendor:', {
+      message: err.message,
+      stack: err.stack,
+      body: req.body,
+      userId: req.user?.id
+    });
+
+    // Check if it's a MongoDB validation error
+    if (err.name === 'ValidationError') {
+      const validationErrors = Object.values(err.errors).map(error => ({
+        field: error.path,
+        message: error.message
+      }));
+      return res.status(400).json({ 
+        message: 'Validation error',
+        errors: validationErrors
+      });
+    }
+
+    // Check if it's a MongoDB duplicate key error
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern)[0];
+      return res.status(400).json({ 
+        message: `${field.toUpperCase()} number already registered`
+      });
+    }
+
+    // Check MongoDB connection
+    if (!mongoose.connection.readyState) {
+      return res.status(500).json({ 
+        message: 'Database connection error',
+        error: process.env.NODE_ENV === 'development' ? 'MongoDB is not connected' : 'Internal Server Error'
+      });
+    }
+
+    res.status(500).json({ 
+      message: 'Server Error',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
+    });
   }
 });
 

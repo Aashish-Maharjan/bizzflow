@@ -33,6 +33,7 @@ const Vendors = () => {
 
     const [poForm, setPOForm] = useState({
         vendorId: '',
+        orderNumber: '',
         items: [{ description: '', quantity: 1, unitPrice: 0, unit: 'piece', total: 0 }],
         dueDate: '',
         paymentTerms: '',
@@ -176,36 +177,34 @@ const Vendors = () => {
     const handlePOSubmit = async (e) => {
         e.preventDefault();
         
+        // Validate required fields
+        if (!poForm.vendorId) {
+            toast.error('Please select a vendor');
+            return;
+        }
+
+        if (!poForm.dueDate) {
+            toast.error('Please select a due date');
+            return;
+        }
+
+        // Validate items
+        if (poForm.items.length === 0) {
+            toast.error('Please add at least one item');
+            return;
+        }
+
+        const invalidItems = poForm.items.filter(
+            item => !item.description || item.quantity < 1 || item.unitPrice < 0
+        );
+
+        if (invalidItems.length > 0) {
+            toast.error('Please fill in all item details correctly');
+            return;
+        }
+
         try {
-            // Validate required fields
-            if (!poForm.vendorId) {
-                toast.error('Please select a vendor');
-                return;
-            }
-
-            if (!poForm.dueDate) {
-                toast.error('Please select a due date');
-                return;
-            }
-
-            // Validate items
-            if (poForm.items.length === 0) {
-                toast.error('Please add at least one item');
-                return;
-            }
-
-            const invalidItems = poForm.items.filter(
-                item => !item.description || item.quantity < 1 || item.unitPrice < 0
-            );
-
-            if (invalidItems.length > 0) {
-                toast.error('Please fill in all item details correctly');
-                return;
-            }
-
             setLoading(true);
-
-            // Prepare form data
             const formData = {
                 vendorId: poForm.vendorId,
                 items: poForm.items.map(item => ({
@@ -215,34 +214,34 @@ const Vendors = () => {
                     unit: item.unit,
                     total: Number(item.quantity) * Number(item.unitPrice)
                 })),
-                dueDate: new Date(poForm.dueDate).toISOString(),
+                dueDate: poForm.dueDate,
                 paymentTerms: poForm.paymentTerms || '',
                 tax: Number(poForm.tax || 0),
                 discount: Number(poForm.discount || 0),
-                notes: poForm.notes || '',
-                status: 'draft'
+                notes: poForm.notes || ''
             };
 
             // Calculate subtotal and total
             formData.subtotal = formData.items.reduce((sum, item) => sum + item.total, 0);
             formData.total = formData.subtotal + formData.tax - formData.discount;
-
-            console.log('Submitting purchase order:', formData);
-
+            
             const response = await axios.post('/api/purchase-orders', formData);
             
             if (response.data) {
                 toast.success('Purchase order created successfully');
                 setShowPOModal(false);
                 resetPOForm();
-                await fetchPurchaseOrders();
+                fetchPurchaseOrders();
             }
         } catch (error) {
-            console.error('Error creating purchase order:', error.response || error);
-            const errorMessage = error.response?.data?.message || 
-                               error.response?.data?.errors?.[0]?.msg || 
-                               'Failed to create purchase order';
-            toast.error(errorMessage);
+            console.error('Error creating purchase order:', error);
+            if (error.response?.data?.errors) {
+                // Handle validation errors from backend
+                const errorMessages = error.response.data.errors.map(err => err.msg);
+                errorMessages.forEach(msg => toast.error(msg));
+            } else {
+                toast.error(error.response?.data?.message || 'Failed to create purchase order');
+            }
         } finally {
             setLoading(false);
         }
@@ -352,6 +351,7 @@ const Vendors = () => {
     const resetPOForm = () => {
         setPOForm({
             vendorId: '',
+            orderNumber: '',
             items: [{ description: '', quantity: 1, unitPrice: 0, unit: 'piece', total: 0 }],
             dueDate: '',
             paymentTerms: '',
@@ -891,6 +891,26 @@ const Vendors = () => {
                                                 </option>
                                             ))}
                                         </select>
+                                    </div>
+
+                                    {/* Order Number */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Order Number
+                                        </label>
+                                        <div className="mt-1 relative rounded-md shadow-sm">
+                                            <input
+                                                type="text"
+                                                name="orderNumber"
+                                                value={poForm.orderNumber}
+                                                onChange={(e) => handlePOInputChange(e)}
+                                                placeholder="Leave empty for auto-generated number"
+                                                className="block w-full border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                            />
+                                            <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                Optional. Must be 5-20 characters (letters, numbers, hyphens). If left empty, system will generate automatically.
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {/* Items */}

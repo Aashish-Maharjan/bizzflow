@@ -3,7 +3,9 @@ const router = express.Router();
 const { check, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const PurchaseOrder = require('../models/PurchaseOrder');
+const Counter = require('../models/Counter');
 const Vendor = require('../models/Vendor');
+const mongoose = require('mongoose');
 
 // @route   GET /api/purchase-orders
 // @desc    Get all purchase orders
@@ -53,51 +55,134 @@ router.post('/', [
     check('items.*.description', 'Item description is required').not().isEmpty(),
     check('items.*.quantity', 'Item quantity must be a positive number').isInt({ min: 1 }),
     check('items.*.unitPrice', 'Item unit price must be a positive number').isFloat({ min: 0 }),
-    check('dueDate', 'Due date is required').not().isEmpty(),
+    check('dueDate', 'Due date is required').not().isEmpty()
   ]
 ], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
+    console.log('Creating purchase order...');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('User ID:', req.user.id);
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     // Verify vendor exists
-    const vendor = await Vendor.findById(req.body.vendorId);
+    const vendor = await Vendor.findById(req.body.vendorId).session(session);
     if (!vendor) {
+      await session.abortTransaction();
+      console.log('Vendor not found:', req.body.vendorId);
       return res.status(404).json({ message: 'Vendor not found' });
     }
 
     // Calculate totals
     const items = req.body.items.map(item => ({
-      ...item,
-      total: item.quantity * item.unitPrice
+      description: item.description,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      unit: item.unit || 'piece',
+      total: Number(item.quantity) * Number(item.unitPrice)
     }));
 
     const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-    const tax = req.body.tax || 0;
-    const discount = req.body.discount || 0;
+    const tax = Number(req.body.tax || 0);
+    const discount = Number(req.body.discount || 0);
     const total = subtotal + tax - discount;
 
+    // Create PurchaseOrder document
+    console.log('Creating PurchaseOrder document...');
     const purchaseOrder = new PurchaseOrder({
-      ...req.body,
+      vendorId: req.body.vendorId,
       items,
-      subtotal,
+      dueDate: req.body.dueDate,
+      paymentTerms: req.body.paymentTerms || '',
       tax,
       discount,
+      subtotal,
       total,
+      status: 'draft',
+      paymentStatus: 'unpaid',
+      notes: req.body.notes || '',
       createdBy: req.user.id
     });
 
-    await purchaseOrder.save();
+    console.log('Purchase order document before save:', purchaseOrder);
+    console.log('Saving purchase order...');
     
-    const populatedPO = await PurchaseOrder.findById(purchaseOrder._id)
+    const savedPO = await purchaseOrder.save({ session });
+    console.log('Purchase order saved successfully:', savedPO._id);
+    console.log('Final order number:', savedPO.orderNumber);
+    
+    await session.commitTransaction();
+    
+    const populatedPO = await PurchaseOrder.findById(savedPO._id)
       .populate('vendorId', ['name', 'email']);
     
     res.json(populatedPO);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    await session.abortTransaction();
+    
+    console.error('Error in creating purchase order:', {
+      message: err.message,
+      stack: err.stack,
+      body: req.body,
+      userId: req.user?.id
+    });
+
+    // Check if it's a MongoDB validation error
+    if (err.name === 'ValidationError') {
+      const validationErrors = Object.values(err.errors).map(error => ({
+        field: error.path,
+        message: error.message
+      }));
+      return res.status(400).json({ 
+        message: 'Validation error',
+        errors: validationErrors
+      });
+    }
+
+    // Check if it's a MongoDB duplicate key error
+    if (err.code === 11000) {
+      // Try to recover from duplicate order number
+      if (err.keyPattern.orderNumber) {
+        try {
+          // Reset the counter to the highest order number
+          const highestPO = await PurchaseOrder.findOne({}, { orderNumber: 1 })
+            .sort({ orderNumber: -1 });
+          
+          if (highestPO) {
+            const currentSeq = parseInt(highestPO.orderNumber.split('-')[1]);
+            await Counter.findByIdAndUpdate('purchaseOrder', { seq: currentSeq });
+          }
+        } catch (resetError) {
+          console.error('Error resetting counter:', resetError);
+        }
+      }
+      
+      return res.status(400).json({ 
+        message: `This ${Object.keys(err.keyPattern)[0]} is already in use`
+      });
+    }
+
+    // Check MongoDB connection
+    if (!mongoose.connection.readyState) {
+      return res.status(500).json({ 
+        message: 'Database connection error',
+        error: process.env.NODE_ENV === 'development' ? 'MongoDB is not connected' : 'Internal Server Error'
+      });
+    }
+
+    res.status(500).json({ 
+      message: 'Server Error',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
+    });
+  } finally {
+    session.endSession();
   }
 });
 

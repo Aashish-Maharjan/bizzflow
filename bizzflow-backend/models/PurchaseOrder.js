@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Counter = require('./Counter');
 
 const purchaseOrderSchema = new mongoose.Schema({
   vendorId: {
@@ -8,8 +9,8 @@ const purchaseOrderSchema = new mongoose.Schema({
   },
   orderNumber: {
     type: String,
-    required: true,
-    unique: true
+    unique: true,
+    required: true
   },
   items: [{
     description: {
@@ -133,39 +134,46 @@ const purchaseOrderSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Generate unique order number before saving
+// Auto-generate order number before saving
 purchaseOrderSchema.pre('save', async function(next) {
-  if (this.isNew) {
-    const date = new Date();
-    const year = date.getFullYear().toString().substr(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    
-    // Get the count of documents for the current month
-    const count = await this.constructor.countDocuments({
-      createdAt: {
-        $gte: new Date(date.getFullYear(), date.getMonth(), 1),
-        $lt: new Date(date.getFullYear(), date.getMonth() + 1, 1)
-      }
-    });
-    
-    // Generate order number: PO-YY-MM-XXXX
-    this.orderNumber = `PO-${year}${month}-${(count + 1).toString().padStart(4, '0')}`;
-  }
-  next();
-});
+  try {
+    if (this.isNew) {
+      console.log('Generating order number for new purchase order...');
+      const seq = await Counter.getNextSequence('purchaseOrder');
+      console.log('Retrieved sequence number:', seq);
+      this.orderNumber = `PO-${seq.toString().padStart(6, '0')}`;
+      console.log('Generated order number:', this.orderNumber);
+    }
 
-// Calculate totals before saving
-purchaseOrderSchema.pre('save', function(next) {
-  // Calculate item totals
-  this.items.forEach(item => {
-    item.total = item.quantity * item.unitPrice;
-  });
-  
-  // Calculate order totals
-  this.subtotal = this.items.reduce((sum, item) => sum + item.total, 0);
-  this.total = this.subtotal + this.tax - this.discount;
-  
-  next();
+    // Calculate totals
+    if (this.items && this.items.length > 0) {
+      console.log('Calculating item totals...');
+      this.items.forEach(item => {
+        item.total = Number(item.quantity) * Number(item.unitPrice);
+      });
+      
+      // Calculate order totals
+      this.subtotal = this.items.reduce((sum, item) => sum + (item.total || 0), 0);
+      this.total = this.subtotal + (this.tax || 0) - (this.discount || 0);
+      console.log('Calculated totals:', {
+        subtotal: this.subtotal,
+        tax: this.tax,
+        discount: this.discount,
+        total: this.total
+      });
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Error in pre-save middleware:', {
+      error: error.message,
+      stack: error.stack,
+      isNew: this.isNew,
+      items: this.items,
+      modelId: this._id
+    });
+    next(error);
+  }
 });
 
 // Add a method to soft delete
